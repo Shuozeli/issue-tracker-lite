@@ -1,5 +1,6 @@
 use test_utils::*;
 
+use issuetracker_server::proto::acl_service_client::AclServiceClient;
 use issuetracker_server::proto::component_service_client::ComponentServiceClient;
 use issuetracker_server::proto::hotlist_service_client::HotlistServiceClient;
 use issuetracker_server::proto::search_service_client::SearchServiceClient;
@@ -225,12 +226,15 @@ async fn test_check_component_permission_acl_match() {
 
     let comp_id = create_component(&mut comp, &mut acl, "Check Perm Component", None).await;
 
-    // Grant ADMIN_ISSUES to user
+    // Grant ADMIN_ISSUES + ADMIN_COMPONENTS to user (ADMIN_COMPONENTS required to call check)
     acl.set_component_acl(SetComponentAclRequest {
         component_id: comp_id,
         identity_type: IdentityType::User as i32,
         identity_value: "admin@test.com".to_string(),
-        permissions: vec![ComponentPermission::AdminIssues as i32],
+        permissions: vec![
+            ComponentPermission::AdminIssues as i32,
+            ComponentPermission::AdminComponents as i32,
+        ],
     })
     .await
     .unwrap();
@@ -518,7 +522,8 @@ async fn test_set_and_get_hotlist_acl() {
         .unwrap()
         .into_inner();
 
-    assert_eq!(resp.entries.len(), 1);
+    // 2 entries: auto-granted admin@test.com + alice@test.com
+    assert_eq!(resp.entries.len(), 2);
 }
 
 #[tokio::test]
@@ -562,7 +567,8 @@ async fn test_remove_hotlist_acl() {
         .unwrap()
         .into_inner();
 
-    assert_eq!(resp.entries.len(), 0);
+    // 1 entry remaining: auto-granted admin@test.com (bob was removed)
+    assert_eq!(resp.entries.len(), 1);
 }
 
 #[tokio::test]
@@ -1236,4 +1242,326 @@ async fn test_unauthenticated_list_returns_empty() {
         .unwrap()
         .into_inner();
     assert_eq!(list.components.len(), 0);
+}
+
+// ── ACL Authorization Enforcement Tests ──────────────────────────────────────
+
+#[tokio::test]
+async fn test_set_component_acl_unauthenticated_denied() {
+    let f = TestFixture::new().await;
+    let mut comp = f.component_client();
+    let mut acl = f.acl_client();
+    let comp_id = create_component(&mut comp, &mut acl, "Auth Test", None).await;
+
+    let mut unauth_acl = f.unauthenticated_acl_client();
+    let err = unauth_acl
+        .set_component_acl(SetComponentAclRequest {
+            component_id: comp_id,
+            identity_type: IdentityType::User as i32,
+            identity_value: "evil@test.com".to_string(),
+            permissions: vec![ComponentPermission::AdminComponents as i32],
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn test_get_component_acl_unauthenticated_denied() {
+    let f = TestFixture::new().await;
+    let mut comp = f.component_client();
+    let mut acl = f.acl_client();
+    let comp_id = create_component(&mut comp, &mut acl, "Auth Test", None).await;
+
+    let mut unauth_acl = f.unauthenticated_acl_client();
+    let err = unauth_acl
+        .get_component_acl(GetComponentAclRequest {
+            component_id: comp_id,
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn test_remove_component_acl_unauthenticated_denied() {
+    let f = TestFixture::new().await;
+    let mut comp = f.component_client();
+    let mut acl = f.acl_client();
+    let comp_id = create_component(&mut comp, &mut acl, "Auth Test", None).await;
+
+    let mut unauth_acl = f.unauthenticated_acl_client();
+    let err = unauth_acl
+        .remove_component_acl(RemoveComponentAclRequest {
+            component_id: comp_id,
+            identity_type: IdentityType::User as i32,
+            identity_value: TEST_ADMIN_USER.to_string(),
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn test_check_component_permission_unauthenticated_denied() {
+    let f = TestFixture::new().await;
+    let mut comp = f.component_client();
+    let mut acl = f.acl_client();
+    let comp_id = create_component(&mut comp, &mut acl, "Auth Test", None).await;
+
+    let mut unauth_acl = f.unauthenticated_acl_client();
+    let err = unauth_acl
+        .check_component_permission(CheckComponentPermissionRequest {
+            component_id: comp_id,
+            user_id: "someone@test.com".to_string(),
+            issue_id: None,
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn test_set_component_acl_non_admin_denied() {
+    let f = TestFixture::new().await;
+    let mut comp = f.component_client();
+    let mut acl = f.acl_client();
+    let comp_id = create_component(&mut comp, &mut acl, "Auth Test", None).await;
+
+    // Give alice only VIEW permission
+    acl.set_component_acl(SetComponentAclRequest {
+        component_id: comp_id,
+        identity_type: IdentityType::User as i32,
+        identity_value: "alice@test.com".to_string(),
+        permissions: vec![ComponentPermission::ViewIssues as i32],
+    })
+    .await
+    .unwrap();
+
+    // alice tries to modify ACL -- should be denied
+    let mut alice_acl = AclServiceClient::with_interceptor(
+        f.channel.clone(),
+        UserInterceptor("alice@test.com".to_string()),
+    );
+    let err = alice_acl
+        .set_component_acl(SetComponentAclRequest {
+            component_id: comp_id,
+            identity_type: IdentityType::User as i32,
+            identity_value: "alice@test.com".to_string(),
+            permissions: vec![ComponentPermission::AdminComponents as i32],
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn test_set_hotlist_acl_unauthenticated_denied() {
+    let f = TestFixture::new().await;
+    let mut hotlist = f.hotlist_client();
+
+    let hl = hotlist
+        .create_hotlist(CreateHotlistRequest {
+            name: "Auth Test Hotlist".to_string(),
+            description: String::new(),
+            owner: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    let mut unauth_acl = f.unauthenticated_acl_client();
+    let err = unauth_acl
+        .set_hotlist_acl(SetHotlistAclRequest {
+            hotlist_id: hl.hotlist_id,
+            identity_type: IdentityType::User as i32,
+            identity_value: "evil@test.com".to_string(),
+            permission: HotlistPermission::HotlistAdmin as i32,
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn test_get_hotlist_acl_unauthenticated_denied() {
+    let f = TestFixture::new().await;
+    let mut hotlist = f.hotlist_client();
+
+    let hl = hotlist
+        .create_hotlist(CreateHotlistRequest {
+            name: "Auth Test Hotlist".to_string(),
+            description: String::new(),
+            owner: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    let mut unauth_acl = f.unauthenticated_acl_client();
+    let err = unauth_acl
+        .get_hotlist_acl(GetHotlistAclRequest {
+            hotlist_id: hl.hotlist_id,
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn test_remove_hotlist_acl_unauthenticated_denied() {
+    let f = TestFixture::new().await;
+    let mut hotlist = f.hotlist_client();
+
+    let hl = hotlist
+        .create_hotlist(CreateHotlistRequest {
+            name: "Auth Test Hotlist".to_string(),
+            description: String::new(),
+            owner: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    let mut unauth_acl = f.unauthenticated_acl_client();
+    let err = unauth_acl
+        .remove_hotlist_acl(RemoveHotlistAclRequest {
+            hotlist_id: hl.hotlist_id,
+            identity_type: IdentityType::User as i32,
+            identity_value: TEST_ADMIN_USER.to_string(),
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn test_create_hotlist_unauthenticated_denied() {
+    let f = TestFixture::new().await;
+    let mut unauth_hotlist = f.unauthenticated_hotlist_client();
+
+    let err = unauth_hotlist
+        .create_hotlist(CreateHotlistRequest {
+            name: "Evil Hotlist".to_string(),
+            description: String::new(),
+            owner: "attacker@test.com".to_string(),
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), tonic::Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn test_create_hotlist_owner_set_from_auth() {
+    let f = TestFixture::new().await;
+    let mut hotlist = f.hotlist_client();
+
+    // Try to set owner to someone else -- should be overridden to admin@test.com
+    let hl = hotlist
+        .create_hotlist(CreateHotlistRequest {
+            name: "Owner Override Test".to_string(),
+            description: String::new(),
+            owner: "someone_else@test.com".to_string(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(hl.owner, TEST_ADMIN_USER);
+}
+
+#[tokio::test]
+async fn test_create_hotlist_auto_grants_admin() {
+    let f = TestFixture::new().await;
+    let mut hotlist = f.hotlist_client();
+    let mut acl = f.acl_client();
+
+    let hl = hotlist
+        .create_hotlist(CreateHotlistRequest {
+            name: "Auto Admin Test".to_string(),
+            description: String::new(),
+            owner: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    // Creator should be able to get ACL (requires HOTLIST_ADMIN)
+    let acl_resp = acl
+        .get_hotlist_acl(GetHotlistAclRequest {
+            hotlist_id: hl.hotlist_id,
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert!(acl_resp
+        .entries
+        .iter()
+        .any(|e| e.identity_value == TEST_ADMIN_USER
+            && e.permission == HotlistPermission::HotlistAdmin as i32));
+}
+
+#[tokio::test]
+async fn test_remove_component_acl_error_redacted() {
+    let f = TestFixture::new().await;
+    let mut comp = f.component_client();
+    let mut acl = f.acl_client();
+    let comp_id = create_component(&mut comp, &mut acl, "Redact Test", None).await;
+
+    let err = acl
+        .remove_component_acl(RemoveComponentAclRequest {
+            component_id: comp_id,
+            identity_type: IdentityType::User as i32,
+            identity_value: "nonexistent@secret.com".to_string(),
+        })
+        .await
+        .unwrap_err();
+
+    // Error message should NOT contain the identity value or component ID
+    let msg = err.message().to_string();
+    assert!(
+        !msg.contains("nonexistent@secret.com"),
+        "error leaked identity_value"
+    );
+    assert!(
+        !msg.contains(&comp_id.to_string()),
+        "error leaked component_id"
+    );
+}
+
+#[tokio::test]
+async fn test_remove_hotlist_acl_error_redacted() {
+    let f = TestFixture::new().await;
+    let mut hotlist = f.hotlist_client();
+    let mut acl = f.acl_client();
+
+    let hl = hotlist
+        .create_hotlist(CreateHotlistRequest {
+            name: "Redact Hotlist Test".to_string(),
+            description: String::new(),
+            owner: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    let err = acl
+        .remove_hotlist_acl(RemoveHotlistAclRequest {
+            hotlist_id: hl.hotlist_id,
+            identity_type: IdentityType::User as i32,
+            identity_value: "nonexistent@secret.com".to_string(),
+        })
+        .await
+        .unwrap_err();
+
+    let msg = err.message().to_string();
+    assert!(
+        !msg.contains("nonexistent@secret.com"),
+        "error leaked identity_value"
+    );
+    assert!(
+        !msg.contains(&hl.hotlist_id.to_string()),
+        "error leaked hotlist_id"
+    );
 }

@@ -193,6 +193,14 @@ impl TestFixture {
     pub fn unauthenticated_group_client(&self) -> GroupServiceClient<Channel> {
         GroupServiceClient::new(self.channel.clone())
     }
+
+    pub fn unauthenticated_acl_client(&self) -> AclServiceClient<Channel> {
+        AclServiceClient::new(self.channel.clone())
+    }
+
+    pub fn unauthenticated_hotlist_client(&self) -> HotlistServiceClient<Channel> {
+        HotlistServiceClient::new(self.channel.clone())
+    }
 }
 
 /// Test interceptor that injects x-user-id: admin@test.com into every request

@@ -5,6 +5,7 @@ pub mod hierarchy;
 pub mod hotlists;
 pub mod quickstart;
 pub mod search;
+pub mod security;
 
 /// A single step in a demo pipeline.
 pub struct Step {
@@ -65,5 +66,6 @@ pub fn all_pipelines() -> Vec<Pipeline> {
         search::pipeline(),
         full_lifecycle::pipeline(),
         groups::pipeline(),
+        security::pipeline(),
     ]
 }

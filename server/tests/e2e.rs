@@ -827,7 +827,7 @@ async fn e2e_hotlists() {
     h.run_ok(
         "list hl issues",
         &["--user", "admin@demo.com", "hotlist", "issues", "1"],
-        &["pm@example.com"],
+        &["admin@demo.com"],
     )
     .await;
     h.run_ok(
@@ -847,7 +847,7 @@ async fn e2e_hotlists() {
     h.run_ok(
         "list after reorder",
         &["--user", "admin@demo.com", "hotlist", "issues", "1"],
-        &["pm@example.com"],
+        &["admin@demo.com"],
     )
     .await;
 
@@ -922,7 +922,7 @@ async fn e2e_hotlists() {
     h.run_ok(
         "list after remove",
         &["--user", "admin@demo.com", "hotlist", "issues", "1"],
-        &["pm@example.com"],
+        &["admin@demo.com"],
     )
     .await;
 }
@@ -2037,13 +2037,21 @@ async fn e2e_groups() {
     // ACL integration
     h.run_ok(
         "create comp",
-        &["component", "create", "Infrastructure"],
+        &[
+            "--user",
+            "admin@acme.com",
+            "component",
+            "create",
+            "Infrastructure",
+        ],
         &["Infrastructure"],
     )
     .await;
     h.run_ok(
         "grant admin",
         &[
+            "--user",
+            "admin@acme.com",
             "acl",
             "set-component",
             "1",
@@ -2060,6 +2068,8 @@ async fn e2e_groups() {
     h.run_ok(
         "group acl",
         &[
+            "--user",
+            "admin@acme.com",
             "acl",
             "set-component",
             "1",
@@ -2075,7 +2085,15 @@ async fn e2e_groups() {
     .await;
     h.run_ok(
         "check alice perms",
-        &["acl", "check", "1", "--user", "alice@acme.com"],
+        &[
+            "--user",
+            "admin@acme.com",
+            "acl",
+            "check",
+            "1",
+            "--user",
+            "alice@acme.com",
+        ],
         &["VIEW_ISSUES", "COMMENT_ON_ISSUES"],
     )
     .await;
@@ -2180,6 +2198,268 @@ async fn e2e_groups() {
         "list remaining",
         &["--user", "admin@acme.com", "group", "list"],
         &["engineering", "backend", "devops", "all-staff"],
+    )
+    .await;
+}
+
+// ── E2E: Security Hardening Pipeline ──────────────────────────────────
+
+#[tokio::test]
+async fn e2e_security_hardening() {
+    let h = E2eHarness::new().await;
+
+    // --- ACL Auth Enforcement ---
+
+    // Unauthenticated component creation still works (component_service allows it for bootstrap)
+    h.run_ok(
+        "create comp (authed)",
+        &["--user", "admin@sec.com", "component", "create", "Secure"],
+        &["Secure"],
+    )
+    .await;
+
+    // Bootstrap: first ACL entry allowed for any authenticated user
+    h.run_ok(
+        "bootstrap acl",
+        &[
+            "--user",
+            "admin@sec.com",
+            "acl",
+            "set-component",
+            "1",
+            "--identity-type",
+            "user",
+            "--identity-value",
+            "admin@sec.com",
+            "--permissions",
+            "ADMIN_COMPONENTS",
+        ],
+        &[],
+    )
+    .await;
+
+    // Unauthenticated ACL set should fail
+    h.run_fail(
+        "unauth set-component-acl denied",
+        &[
+            "acl",
+            "set-component",
+            "1",
+            "--identity-type",
+            "user",
+            "--identity-value",
+            "evil@hack.com",
+            "--permissions",
+            "ADMIN_COMPONENTS",
+        ],
+    )
+    .await;
+
+    // Unauthenticated ACL get should fail
+    h.run_fail(
+        "unauth get-component-acl denied",
+        &["acl", "get-component", "1"],
+    )
+    .await;
+
+    // Unauthenticated ACL remove should fail
+    h.run_fail(
+        "unauth remove-component-acl denied",
+        &[
+            "acl",
+            "remove-component",
+            "1",
+            "--identity-type",
+            "user",
+            "--identity-value",
+            "admin@sec.com",
+        ],
+    )
+    .await;
+
+    // Unauthenticated permission check should fail
+    h.run_fail(
+        "unauth check-permission denied",
+        &["acl", "check", "1", "--user", "admin@sec.com"],
+    )
+    .await;
+
+    // Non-admin user cannot modify ACL
+    h.run_ok(
+        "grant viewer alice",
+        &[
+            "--user",
+            "admin@sec.com",
+            "acl",
+            "set-component",
+            "1",
+            "--identity-type",
+            "user",
+            "--identity-value",
+            "viewer@sec.com",
+            "--permissions",
+            "VIEW_ISSUES",
+        ],
+        &[],
+    )
+    .await;
+
+    h.run_fail(
+        "viewer cannot set acl",
+        &[
+            "--user",
+            "viewer@sec.com",
+            "acl",
+            "set-component",
+            "1",
+            "--identity-type",
+            "user",
+            "--identity-value",
+            "viewer@sec.com",
+            "--permissions",
+            "ADMIN_COMPONENTS",
+        ],
+    )
+    .await;
+
+    // Admin can check permissions
+    h.run_ok(
+        "admin checks viewer perms",
+        &[
+            "--user",
+            "admin@sec.com",
+            "acl",
+            "check",
+            "1",
+            "--user",
+            "viewer@sec.com",
+        ],
+        &["VIEW_ISSUES"],
+    )
+    .await;
+
+    // --- Hotlist Auth Enforcement ---
+
+    // Unauthenticated hotlist creation should fail
+    h.run_fail(
+        "unauth create-hotlist denied",
+        &[
+            "hotlist",
+            "create",
+            "--name",
+            "Evil Hotlist",
+            "--owner",
+            "attacker@hack.com",
+        ],
+    )
+    .await;
+
+    // Create hotlist: owner is overridden to authenticated user
+    h.run_ok(
+        "create hotlist (owner override)",
+        &[
+            "--user",
+            "admin@sec.com",
+            "hotlist",
+            "create",
+            "--name",
+            "Security Audit",
+            "--owner",
+            "someone_else@sec.com",
+        ],
+        &["Security Audit", "admin@sec.com"],
+    )
+    .await;
+
+    // Creator auto-gets HOTLIST_ADMIN - can view ACL
+    h.run_ok(
+        "creator can get hotlist acl",
+        &["--user", "admin@sec.com", "acl", "get-hotlist", "1"],
+        &["admin@sec.com"],
+    )
+    .await;
+
+    // Unauthenticated hotlist ACL set should fail
+    h.run_fail(
+        "unauth set-hotlist-acl denied",
+        &[
+            "acl",
+            "set-hotlist",
+            "1",
+            "--identity-type",
+            "user",
+            "--identity-value",
+            "evil@hack.com",
+            "--permission",
+            "HOTLIST_ADMIN",
+        ],
+    )
+    .await;
+
+    // Unauthenticated hotlist ACL get should fail
+    h.run_fail(
+        "unauth get-hotlist-acl denied",
+        &["acl", "get-hotlist", "1"],
+    )
+    .await;
+
+    // --- Issue creation with ACL enforcement ---
+    h.run_ok(
+        "grant create issues",
+        &[
+            "--user",
+            "admin@sec.com",
+            "acl",
+            "set-component",
+            "1",
+            "--identity-type",
+            "user",
+            "--identity-value",
+            "dev@sec.com",
+            "--permissions",
+            "CREATE_ISSUES,VIEW_ISSUES",
+        ],
+        &[],
+    )
+    .await;
+
+    h.run_ok(
+        "dev creates issue",
+        &[
+            "--user",
+            "dev@sec.com",
+            "issue",
+            "create",
+            "-c",
+            "1",
+            "-t",
+            "Fix auth bypass",
+            "-p",
+            "P0",
+            "--type",
+            "BUG",
+        ],
+        &["Fix auth bypass"],
+    )
+    .await;
+
+    // Viewer cannot create issues
+    h.run_fail(
+        "viewer cannot create issue",
+        &[
+            "--user",
+            "viewer@sec.com",
+            "issue",
+            "create",
+            "-c",
+            "1",
+            "-t",
+            "Should fail",
+            "-p",
+            "P2",
+            "--type",
+            "BUG",
+        ],
     )
     .await;
 }

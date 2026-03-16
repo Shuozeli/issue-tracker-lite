@@ -112,7 +112,11 @@ impl HotlistService for HotlistServiceImpl {
         &self,
         request: Request<CreateHotlistRequest>,
     ) -> Result<Response<ProtoHotlist>, Status> {
+        let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
+
+        let user_id = user_id
+            .ok_or_else(|| DomainError::PermissionDenied("authentication required".to_string()))?;
 
         if req.name.trim().is_empty() {
             return Err(DomainError::InvalidArgument("name must not be empty".to_string()).into());
@@ -133,10 +137,10 @@ impl HotlistService for HotlistServiceImpl {
             .create()
             .set("name", Value::Text(req.name))
             .set("description", Value::Text(req.description))
-            .set("owner", Value::Text(req.owner))
+            .set("owner", Value::Text(user_id.clone()))
             .set("archived", Value::Bool(false))
             .set("createdAt", now.clone())
-            .set("modifiedAt", now)
+            .set("modifiedAt", now.clone())
             .build();
         tx.execute(&stmt)
             .await
@@ -148,6 +152,19 @@ impl HotlistService for HotlistServiceImpl {
             .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let hotlist = Hotlist::try_from(&row).map_err(DomainError::from)?;
+
+        // Auto-grant HOTLIST_ADMIN to the creator
+        let acl_stmt = Query::table("HotlistAcl")
+            .create()
+            .set("hotlistId", Value::Int(hotlist.id as i64))
+            .set("identityType", Value::Text("USER".to_string()))
+            .set("identityValue", Value::Text(user_id))
+            .set("permission", Value::Text("HOTLIST_ADMIN".to_string()))
+            .set("createdAt", now)
+            .build();
+        tx.execute(&acl_stmt)
+            .await
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         log_event(
             &tx,
@@ -403,14 +420,14 @@ impl HotlistService for HotlistServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_id = user_id
+            .ok_or_else(|| DomainError::PermissionDenied("authentication required".to_string()))?;
+
+        let user_groups = self
+            .identity
+            .resolve_user_groups(&user_id)
+            .await
+            .unwrap_or_default();
 
         let mut conn = self
             .db
@@ -425,7 +442,7 @@ impl HotlistService for HotlistServiceImpl {
         permissions::check_hotlist_permission_quiver(
             &tx,
             req.hotlist_id,
-            user_id.as_deref(),
+            Some(&user_id),
             "HOTLIST_VIEW_APPEND",
             &user_groups,
         )
@@ -491,7 +508,7 @@ impl HotlistService for HotlistServiceImpl {
             .set("hotlistId", Value::Int(req.hotlist_id))
             .set("issueId", Value::Int(req.issue_id))
             .set("position", Value::Int(next_position as i64))
-            .set("addedBy", Value::Text(req.added_by))
+            .set("addedBy", Value::Text(user_id))
             .set("addedAt", now)
             .build();
         tx.execute(&create_stmt)

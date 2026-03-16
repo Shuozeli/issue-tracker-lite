@@ -105,6 +105,38 @@ impl AclServiceImpl {
         }
         Ok(())
     }
+
+    /// Count the number of ACL entries for a component.
+    async fn count_component_acl_entries<C: Connection>(
+        tx: &C,
+        component_id: i64,
+    ) -> Result<usize, DomainError> {
+        let stmt = Query::table("ComponentAcl")
+            .find_many()
+            .filter(Filter::eq("componentId", Value::Int(component_id)))
+            .build();
+        let rows = tx
+            .query(&stmt)
+            .await
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        Ok(rows.len())
+    }
+
+    /// Count the number of ACL entries for a hotlist.
+    async fn count_hotlist_acl_entries<C: Connection>(
+        tx: &C,
+        hotlist_id: i64,
+    ) -> Result<usize, DomainError> {
+        let stmt = Query::table("HotlistAcl")
+            .find_many()
+            .filter(Filter::eq("hotlistId", Value::Int(hotlist_id)))
+            .build();
+        let rows = tx
+            .query(&stmt)
+            .await
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        Ok(rows.len())
+    }
 }
 
 #[tonic::async_trait]
@@ -113,6 +145,7 @@ impl AclService for AclServiceImpl {
         &self,
         request: Request<SetComponentAclRequest>,
     ) -> Result<Response<ComponentAclEntry>, Status> {
+        let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
         let identity_type = permissions::identity_type_from_proto(req.identity_type)?;
@@ -139,6 +172,15 @@ impl AclService for AclServiceImpl {
         let perms_json = serde_json::to_string(&perm_strings)
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
+        let user_groups = match user_id.as_deref() {
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
+            None => vec![],
+        };
+
         let mut conn = self
             .db
             .acquire()
@@ -150,6 +192,27 @@ impl AclService for AclServiceImpl {
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         Self::validate_component_exists(&tx, req.component_id).await?;
+
+        // Bootstrap logic: skip permission check if no ACL entries exist yet
+        let acl_count = Self::count_component_acl_entries(&tx, req.component_id).await?;
+        if acl_count > 0 {
+            permissions::check_component_permission_quiver(
+                &tx,
+                req.component_id,
+                user_id.as_deref(),
+                permissions::ComponentPermission::AdminComponents,
+                None,
+                &user_groups,
+            )
+            .await?;
+        } else {
+            // Still require authentication for bootstrap
+            if user_id.is_none() {
+                return Err(
+                    DomainError::PermissionDenied("authentication required".to_string()).into(),
+                );
+            }
+        }
 
         // Upsert: check for existing entry
         let find_stmt = Query::table("ComponentAcl")
@@ -221,7 +284,17 @@ impl AclService for AclServiceImpl {
         &self,
         request: Request<GetComponentAclRequest>,
     ) -> Result<Response<GetComponentAclResponse>, Status> {
+        let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
+
+        let user_groups = match user_id.as_deref() {
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
+            None => vec![],
+        };
 
         let mut conn = self
             .db
@@ -234,6 +307,16 @@ impl AclService for AclServiceImpl {
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         Self::validate_component_exists(&tx, req.component_id).await?;
+
+        permissions::check_component_permission_quiver(
+            &tx,
+            req.component_id,
+            user_id.as_deref(),
+            permissions::ComponentPermission::AdminComponents,
+            None,
+            &user_groups,
+        )
+        .await?;
 
         let stmt = Query::table("ComponentAcl")
             .find_many()
@@ -262,9 +345,19 @@ impl AclService for AclServiceImpl {
         &self,
         request: Request<RemoveComponentAclRequest>,
     ) -> Result<Response<RemoveComponentAclResponse>, Status> {
+        let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
         let identity_type = permissions::identity_type_from_proto(req.identity_type)?;
+
+        let user_groups = match user_id.as_deref() {
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
+            None => vec![],
+        };
 
         let mut conn = self
             .db
@@ -277,6 +370,16 @@ impl AclService for AclServiceImpl {
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         Self::validate_component_exists(&tx, req.component_id).await?;
+
+        permissions::check_component_permission_quiver(
+            &tx,
+            req.component_id,
+            user_id.as_deref(),
+            permissions::ComponentPermission::AdminComponents,
+            None,
+            &user_groups,
+        )
+        .await?;
 
         // Find the entry
         let find_stmt = Query::table("ComponentAcl")
@@ -292,12 +395,8 @@ impl AclService for AclServiceImpl {
             .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-        let row = existing_row.ok_or_else(|| {
-            DomainError::NotFound(format!(
-                "ACL entry not found for {}:{} on component {}",
-                identity_type, req.identity_value, req.component_id
-            ))
-        })?;
+        let row =
+            existing_row.ok_or_else(|| DomainError::NotFound("ACL entry not found".to_string()))?;
 
         let acl = ComponentAcl::try_from(&row).map_err(DomainError::from)?;
 
@@ -320,6 +419,7 @@ impl AclService for AclServiceImpl {
         &self,
         request: Request<SetHotlistAclRequest>,
     ) -> Result<Response<HotlistAclEntry>, Status> {
+        let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
         let identity_type = permissions::identity_type_from_proto(req.identity_type)?;
@@ -332,6 +432,15 @@ impl AclService for AclServiceImpl {
             .into());
         }
 
+        let user_groups = match user_id.as_deref() {
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
+            None => vec![],
+        };
+
         let mut conn = self
             .db
             .acquire()
@@ -343,6 +452,26 @@ impl AclService for AclServiceImpl {
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         Self::validate_hotlist_exists(&tx, req.hotlist_id).await?;
+
+        // Bootstrap logic: skip permission check if no ACL entries exist yet
+        let acl_count = Self::count_hotlist_acl_entries(&tx, req.hotlist_id).await?;
+        if acl_count > 0 {
+            permissions::check_hotlist_permission_quiver(
+                &tx,
+                req.hotlist_id,
+                user_id.as_deref(),
+                "HOTLIST_ADMIN",
+                &user_groups,
+            )
+            .await?;
+        } else {
+            // Still require authentication for bootstrap
+            if user_id.is_none() {
+                return Err(
+                    DomainError::PermissionDenied("authentication required".to_string()).into(),
+                );
+            }
+        }
 
         // Upsert
         let find_stmt = Query::table("HotlistAcl")
@@ -412,7 +541,17 @@ impl AclService for AclServiceImpl {
         &self,
         request: Request<GetHotlistAclRequest>,
     ) -> Result<Response<GetHotlistAclResponse>, Status> {
+        let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
+
+        let user_groups = match user_id.as_deref() {
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
+            None => vec![],
+        };
 
         let mut conn = self
             .db
@@ -425,6 +564,15 @@ impl AclService for AclServiceImpl {
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         Self::validate_hotlist_exists(&tx, req.hotlist_id).await?;
+
+        permissions::check_hotlist_permission_quiver(
+            &tx,
+            req.hotlist_id,
+            user_id.as_deref(),
+            "HOTLIST_ADMIN",
+            &user_groups,
+        )
+        .await?;
 
         let stmt = Query::table("HotlistAcl")
             .find_many()
@@ -453,9 +601,19 @@ impl AclService for AclServiceImpl {
         &self,
         request: Request<RemoveHotlistAclRequest>,
     ) -> Result<Response<RemoveHotlistAclResponse>, Status> {
+        let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
         let identity_type = permissions::identity_type_from_proto(req.identity_type)?;
+
+        let user_groups = match user_id.as_deref() {
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
+            None => vec![],
+        };
 
         let mut conn = self
             .db
@@ -468,6 +626,15 @@ impl AclService for AclServiceImpl {
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         Self::validate_hotlist_exists(&tx, req.hotlist_id).await?;
+
+        permissions::check_hotlist_permission_quiver(
+            &tx,
+            req.hotlist_id,
+            user_id.as_deref(),
+            "HOTLIST_ADMIN",
+            &user_groups,
+        )
+        .await?;
 
         let find_stmt = Query::table("HotlistAcl")
             .find_first()
@@ -482,12 +649,8 @@ impl AclService for AclServiceImpl {
             .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-        let row = existing_row.ok_or_else(|| {
-            DomainError::NotFound(format!(
-                "ACL entry not found for {}:{} on hotlist {}",
-                identity_type, req.identity_value, req.hotlist_id
-            ))
-        })?;
+        let row =
+            existing_row.ok_or_else(|| DomainError::NotFound("ACL entry not found".to_string()))?;
 
         let acl = HotlistAcl::try_from(&row).map_err(DomainError::from)?;
 
@@ -510,13 +673,17 @@ impl AclService for AclServiceImpl {
         &self,
         request: Request<CheckComponentPermissionRequest>,
     ) -> Result<Response<CheckComponentPermissionResponse>, Status> {
+        let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = self
-            .identity
-            .resolve_user_groups(&req.user_id)
-            .await
-            .unwrap_or_default();
+        let user_groups = match user_id.as_deref() {
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
+            None => vec![],
+        };
 
         let mut conn = self
             .db
@@ -529,6 +696,24 @@ impl AclService for AclServiceImpl {
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         Self::validate_component_exists(&tx, req.component_id).await?;
+
+        // Require AdminComponents to query permissions
+        permissions::check_component_permission_quiver(
+            &tx,
+            req.component_id,
+            user_id.as_deref(),
+            permissions::ComponentPermission::AdminComponents,
+            None,
+            &user_groups,
+        )
+        .await?;
+
+        // Resolve groups for the TARGET user (req.user_id), not the caller
+        let target_user_groups = self
+            .identity
+            .resolve_user_groups(&req.user_id)
+            .await
+            .unwrap_or_default();
 
         // Step 1: Check component ACL for direct match
         let acl_stmt = Query::table("ComponentAcl")
@@ -553,7 +738,7 @@ impl AclService for AclServiceImpl {
             let matches = match acl.identity_type.as_str() {
                 "USER" => acl.identity_value == req.user_id,
                 "PUBLIC" => true,
-                "GROUP" => user_groups.contains(&acl.identity_value),
+                "GROUP" => target_user_groups.contains(&acl.identity_value),
                 _ => false,
             };
             if matches {
