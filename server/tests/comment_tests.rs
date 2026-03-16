@@ -1,6 +1,4 @@
-#[allow(dead_code, unused_imports)]
-mod common;
-use common::*;
+use test_utils::*;
 
 // ── 8.3 Comment Tests ──────────────────────────────────────────────────
 

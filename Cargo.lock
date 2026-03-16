@@ -939,6 +939,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "test-utils",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -1677,6 +1678,18 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "test-utils"
+version = "0.1.0"
+dependencies = [
+ "identity",
+ "issuetracker-server",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "tonic",
 ]
 
 [[package]]

@@ -1,6 +1,4 @@
-#[allow(dead_code, unused_imports)]
-mod common;
-use common::*;
+use test_utils::*;
 
 use issuetracker_server::proto::component_service_client::ComponentServiceClient;
 use issuetracker_server::proto::hotlist_service_client::HotlistServiceClient;

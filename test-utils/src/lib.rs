@@ -186,12 +186,10 @@ impl TestFixture {
         GroupServiceClient::with_interceptor(self.channel.clone(), AdminInterceptor)
     }
 
-    /// Create a client without auth interceptor (for testing unauthenticated access)
     pub fn unauthenticated_component_client(&self) -> ComponentServiceClient<Channel> {
         ComponentServiceClient::new(self.channel.clone())
     }
 
-    /// Create a group client without auth interceptor (for testing unauthenticated access)
     pub fn unauthenticated_group_client(&self) -> GroupServiceClient<Channel> {
         GroupServiceClient::new(self.channel.clone())
     }
