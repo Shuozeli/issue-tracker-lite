@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package issuetracker.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service EventLogService {
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+}
+
+message Event {
+  int64 event_id = 1;
+  google.protobuf.Timestamp event_time = 2;
+  string event_type = 3;
+  string actor = 4;
+  string entity_type = 5;
+  int64 entity_id = 6;
+  string payload = 7;
+}
+
+message ListEventsRequest {
+  // Filter by entity type: "Issue", "Component", "Hotlist", "Comment", or "" for all
+  string entity_type = 1;
+  // Filter by entity ID (0 = all)
+  int64 entity_id = 2;
+  // Filter by event type: "ISSUE_CREATED", "ISSUE_UPDATED", etc. ("" = all)
+  string event_type = 3;
+  // Filter by actor ("" = all)
+  string actor = 4;
+  // Filter by time range (optional)
+  optional google.protobuf.Timestamp since = 5;
+  optional google.protobuf.Timestamp until = 6;
+  int32 page_size = 7;
+  string page_token = 8;
+}
+
+message ListEventsResponse {
+  repeated Event events = 1;
+  string next_page_token = 2;
+}

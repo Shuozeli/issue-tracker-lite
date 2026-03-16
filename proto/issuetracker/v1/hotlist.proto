@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package issuetracker.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service HotlistService {
+  rpc CreateHotlist(CreateHotlistRequest) returns (Hotlist);
+  rpc GetHotlist(GetHotlistRequest) returns (Hotlist);
+  rpc ListHotlists(ListHotlistsRequest) returns (ListHotlistsResponse);
+  rpc UpdateHotlist(UpdateHotlistRequest) returns (Hotlist);
+  rpc AddIssue(AddIssueToHotlistRequest) returns (HotlistIssue);
+  rpc RemoveIssue(RemoveIssueFromHotlistRequest) returns (RemoveIssueFromHotlistResponse);
+  rpc ListIssues(ListHotlistIssuesRequest) returns (ListHotlistIssuesResponse);
+  rpc ReorderIssues(ReorderHotlistIssuesRequest) returns (ReorderHotlistIssuesResponse);
+}
+
+message Hotlist {
+  int64 hotlist_id = 1;
+  string name = 2;
+  string description = 3;
+  string owner = 4;
+  bool archived = 5;
+  google.protobuf.Timestamp create_time = 6;
+  google.protobuf.Timestamp modify_time = 7;
+  int32 issue_count = 8;
+}
+
+message HotlistIssue {
+  int64 hotlist_id = 1;
+  int64 issue_id = 2;
+  int32 position = 3;
+  google.protobuf.Timestamp add_time = 4;
+  string added_by = 5;
+}
+
+message CreateHotlistRequest {
+  string name = 1;
+  string description = 2;
+  string owner = 3;
+}
+
+message GetHotlistRequest {
+  int64 hotlist_id = 1;
+}
+
+message ListHotlistsRequest {
+  // Filter: "all", "active", "archived" (default: "active")
+  string filter = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListHotlistsResponse {
+  repeated Hotlist hotlists = 1;
+  string next_page_token = 2;
+}
+
+message UpdateHotlistRequest {
+  int64 hotlist_id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional bool archived = 4;
+}
+
+message AddIssueToHotlistRequest {
+  int64 hotlist_id = 1;
+  int64 issue_id = 2;
+  string added_by = 3;
+}
+
+message RemoveIssueFromHotlistRequest {
+  int64 hotlist_id = 1;
+  int64 issue_id = 2;
+}
+
+message RemoveIssueFromHotlistResponse {}
+
+message ListHotlistIssuesRequest {
+  int64 hotlist_id = 1;
+}
+
+message ListHotlistIssuesResponse {
+  repeated HotlistIssue issues = 1;
+}
+
+message ReorderHotlistIssuesRequest {
+  int64 hotlist_id = 1;
+  // Ordered list of issue IDs in the new desired order
+  repeated int64 issue_ids = 2;
+}
+
+message ReorderHotlistIssuesResponse {}

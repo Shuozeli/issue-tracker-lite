@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+package issuetracker.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service AclService {
+  // Component ACL management
+  rpc SetComponentAcl(SetComponentAclRequest) returns (ComponentAclEntry);
+  rpc GetComponentAcl(GetComponentAclRequest) returns (GetComponentAclResponse);
+  rpc RemoveComponentAcl(RemoveComponentAclRequest) returns (RemoveComponentAclResponse);
+
+  // Hotlist ACL management
+  rpc SetHotlistAcl(SetHotlistAclRequest) returns (HotlistAclEntry);
+  rpc GetHotlistAcl(GetHotlistAclRequest) returns (GetHotlistAclResponse);
+  rpc RemoveHotlistAcl(RemoveHotlistAclRequest) returns (RemoveHotlistAclResponse);
+
+  // Permission check (returns effective permissions for a user)
+  rpc CheckComponentPermission(CheckComponentPermissionRequest) returns (CheckComponentPermissionResponse);
+}
+
+// --- Enums ---
+
+enum IdentityType {
+  IDENTITY_TYPE_UNSPECIFIED = 0;
+  USER = 1;
+  GROUP = 2;
+  PUBLIC = 3;
+}
+
+enum ComponentPermission {
+  COMPONENT_PERMISSION_UNSPECIFIED = 0;
+  VIEW_ISSUES = 1;
+  COMMENT_ON_ISSUES = 2;
+  EDIT_ISSUES = 3;
+  ADMIN_ISSUES = 4;
+  CREATE_ISSUES = 5;
+  VIEW_COMPONENTS = 6;
+  ADMIN_COMPONENTS = 7;
+  VIEW_RESTRICTED = 8;
+  VIEW_RESTRICTED_PLUS = 9;
+}
+
+enum HotlistPermission {
+  HOTLIST_PERMISSION_UNSPECIFIED = 0;
+  HOTLIST_VIEW = 1;
+  HOTLIST_VIEW_APPEND = 2;
+  HOTLIST_ADMIN = 3;
+}
+
+enum AccessLevel {
+  ACCESS_LEVEL_UNSPECIFIED = 0;
+  DEFAULT = 1;
+  LIMITED_COMMENTING = 2;
+  LIMITED_VISIBILITY = 3;
+}
+
+// --- Component ACL Messages ---
+
+message ComponentAclEntry {
+  int64 component_id = 1;
+  IdentityType identity_type = 2;
+  string identity_value = 3;
+  repeated ComponentPermission permissions = 4;
+  google.protobuf.Timestamp create_time = 5;
+}
+
+message SetComponentAclRequest {
+  int64 component_id = 1;
+  IdentityType identity_type = 2;
+  string identity_value = 3;
+  repeated ComponentPermission permissions = 4;
+}
+
+message GetComponentAclRequest {
+  int64 component_id = 1;
+}
+
+message GetComponentAclResponse {
+  repeated ComponentAclEntry entries = 1;
+}
+
+message RemoveComponentAclRequest {
+  int64 component_id = 1;
+  IdentityType identity_type = 2;
+  string identity_value = 3;
+}
+
+message RemoveComponentAclResponse {}
+
+// --- Hotlist ACL Messages ---
+
+message HotlistAclEntry {
+  int64 hotlist_id = 1;
+  IdentityType identity_type = 2;
+  string identity_value = 3;
+  HotlistPermission permission = 4;
+  google.protobuf.Timestamp create_time = 5;
+}
+
+message SetHotlistAclRequest {
+  int64 hotlist_id = 1;
+  IdentityType identity_type = 2;
+  string identity_value = 3;
+  HotlistPermission permission = 4;
+}
+
+message GetHotlistAclRequest {
+  int64 hotlist_id = 1;
+}
+
+message GetHotlistAclResponse {
+  repeated HotlistAclEntry entries = 1;
+}
+
+message RemoveHotlistAclRequest {
+  int64 hotlist_id = 1;
+  IdentityType identity_type = 2;
+  string identity_value = 3;
+}
+
+message RemoveHotlistAclResponse {}
+
+// --- Permission Check ---
+
+message CheckComponentPermissionRequest {
+  int64 component_id = 1;
+  string user_id = 2;  // email of the user to check
+  // Optionally check against a specific issue (for expanded access evaluation)
+  optional int64 issue_id = 3;
+}
+
+message CheckComponentPermissionResponse {
+  repeated ComponentPermission permissions = 1;
+  // How the permissions were granted
+  string grant_source = 2;  // "ACL", "EXPANDED_ACCESS", "DENIED"
+}

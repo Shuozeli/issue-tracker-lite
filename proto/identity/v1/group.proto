@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+package identity.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service GroupService {
+  // Group CRUD
+  rpc CreateGroup(CreateGroupRequest) returns (Group);
+  rpc GetGroup(GetGroupRequest) returns (Group);
+  rpc ListGroups(ListGroupsRequest) returns (ListGroupsResponse);
+  rpc UpdateGroup(UpdateGroupRequest) returns (Group);
+  rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
+
+  // Member management
+  rpc AddMember(AddMemberRequest) returns (GroupMember);
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+  rpc UpdateMemberRole(UpdateMemberRoleRequest) returns (GroupMember);
+  rpc BatchAddMembers(BatchAddMembersRequest) returns (BatchAddMembersResponse);
+
+  // Membership queries
+  rpc ResolveUserGroups(ResolveUserGroupsRequest) returns (ResolveUserGroupsResponse);
+  rpc IsMember(IsMemberRequest) returns (IsMemberResponse);
+}
+
+// --- Enums ---
+
+enum MemberType {
+  MEMBER_TYPE_UNSPECIFIED = 0;
+  MEMBER_TYPE_USER = 1;
+  MEMBER_TYPE_GROUP = 2;
+}
+
+enum MemberRole {
+  MEMBER_ROLE_UNSPECIFIED = 0;
+  MEMBER = 1;
+  MANAGER = 2;
+  OWNER = 3;
+}
+
+// --- Resources ---
+
+message Group {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  string creator = 4;
+  google.protobuf.Timestamp create_time = 5;
+  google.protobuf.Timestamp update_time = 6;
+}
+
+message GroupMember {
+  string group_name = 1;
+  MemberType member_type = 2;
+  string member_value = 3;
+  MemberRole role = 4;
+  string added_by = 5;
+  google.protobuf.Timestamp create_time = 6;
+}
+
+// --- Group CRUD ---
+
+message CreateGroupRequest {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+}
+
+message GetGroupRequest {
+  string name = 1;
+}
+
+message ListGroupsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListGroupsResponse {
+  repeated Group groups = 1;
+  string next_page_token = 2;
+}
+
+message UpdateGroupRequest {
+  string name = 1;
+  optional string display_name = 2;
+  optional string description = 3;
+}
+
+message DeleteGroupRequest {
+  string name = 1;
+}
+
+message DeleteGroupResponse {}
+
+// --- Member management ---
+
+message AddMemberRequest {
+  string group_name = 1;
+  MemberType member_type = 2;
+  string member_value = 3;
+  MemberRole role = 4;
+}
+
+message RemoveMemberRequest {
+  string group_name = 1;
+  MemberType member_type = 2;
+  string member_value = 3;
+}
+
+message RemoveMemberResponse {}
+
+message ListMembersRequest {
+  string group_name = 1;
+}
+
+message ListMembersResponse {
+  repeated GroupMember members = 1;
+}
+
+message UpdateMemberRoleRequest {
+  string group_name = 1;
+  MemberType member_type = 2;
+  string member_value = 3;
+  MemberRole role = 4;
+}
+
+message BatchAddMembersRequest {
+  string group_name = 1;
+  repeated BatchMemberEntry members = 2;
+}
+
+message BatchMemberEntry {
+  MemberType member_type = 1;
+  string member_value = 2;
+  MemberRole role = 3;
+}
+
+message BatchAddMembersResponse {
+  repeated GroupMember members = 1;
+}
+
+// --- Membership queries ---
+
+message ResolveUserGroupsRequest {
+  string user_id = 1;
+}
+
+message ResolveUserGroupsResponse {
+  repeated string groups = 1;
+}
+
+message IsMemberRequest {
+  string user_id = 1;
+  string group_name = 2;
+}
+
+message IsMemberResponse {
+  bool is_member = 1;
+}

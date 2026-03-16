@@ -1,0 +1,174 @@
+config {
+    provider "sqlite"
+    database "issuetracker"
+}
+
+model Component {
+    id                      Int32      PRIMARY KEY AUTOINCREMENT
+    name                    Utf8
+    description             Utf8       DEFAULT ""
+    parentId                Int32?
+    expandedAccessEnabled   Boolean    DEFAULT true
+    editableCommentsEnabled Boolean    DEFAULT false
+    createdAt               Utf8       DEFAULT now()
+    updatedAt               Utf8       DEFAULT now()
+
+    FOREIGN KEY (parentId) REFERENCES Component (id)
+}
+
+model ComponentAcl {
+    id             Int32    PRIMARY KEY AUTOINCREMENT
+    componentId    Int32
+    identityType   Utf8
+    identityValue  Utf8
+    permissions    Utf8
+    createdAt      Utf8     DEFAULT now()
+
+    FOREIGN KEY (componentId) REFERENCES Component (id)
+    UNIQUE (componentId, identityType, identityValue)
+}
+
+model Issue {
+    id              Int32    PRIMARY KEY AUTOINCREMENT
+    title           Utf8
+    description     Utf8     DEFAULT ""
+    status          Utf8     DEFAULT "NEW"
+    priority        Utf8     DEFAULT "P2"
+    severity        Utf8     DEFAULT "S2"
+    issueType       Utf8     DEFAULT "BUG"
+    componentId     Int32
+    assignee        Utf8     DEFAULT ""
+    reporter        Utf8     DEFAULT ""
+    verifier        Utf8     DEFAULT ""
+    foundIn         Utf8     DEFAULT ""
+    targetedTo      Utf8     DEFAULT ""
+    verifiedIn      Utf8     DEFAULT ""
+    inProd          Boolean  DEFAULT false
+    archived        Boolean  DEFAULT false
+    accessLevel     Utf8     DEFAULT "DEFAULT"
+    voteCount       Int32    DEFAULT 0
+    duplicateCount  Int32    DEFAULT 0
+    createdAt       Utf8     DEFAULT now()
+    modifiedAt      Utf8     DEFAULT now()
+    resolvedAt      Utf8?
+    verifiedAt      Utf8?
+    duplicateOfId   Int32?
+
+    FOREIGN KEY (componentId) REFERENCES Component (id)
+    INDEX (componentId)
+}
+
+model IssueParent {
+    id        Int32    PRIMARY KEY AUTOINCREMENT
+    childId   Int32
+    parentId  Int32
+
+    FOREIGN KEY (childId) REFERENCES Issue (id)
+    FOREIGN KEY (parentId) REFERENCES Issue (id)
+    UNIQUE (childId, parentId)
+}
+
+model IssueBlocking {
+    id          Int32    PRIMARY KEY AUTOINCREMENT
+    blockingId  Int32
+    blockedId   Int32
+
+    FOREIGN KEY (blockingId) REFERENCES Issue (id)
+    FOREIGN KEY (blockedId) REFERENCES Issue (id)
+    UNIQUE (blockingId, blockedId)
+}
+
+model Comment {
+    id            Int32    PRIMARY KEY AUTOINCREMENT
+    issueId       Int32
+    author        Utf8
+    body          Utf8
+    isDescription Boolean  DEFAULT false
+    hidden        Boolean  DEFAULT false
+    hiddenBy      Utf8?
+    hiddenAt      Utf8?
+    createdAt     Utf8     DEFAULT now()
+    modifiedAt    Utf8?
+
+    FOREIGN KEY (issueId) REFERENCES Issue (id)
+    INDEX (issueId)
+}
+
+model CommentRevision {
+    id         Int32    PRIMARY KEY AUTOINCREMENT
+    commentId  Int32
+    body       Utf8
+    editedBy   Utf8
+    createdAt  Utf8     DEFAULT now()
+
+    FOREIGN KEY (commentId) REFERENCES Comment (id)
+}
+
+model Hotlist {
+    id          Int32    PRIMARY KEY AUTOINCREMENT
+    name        Utf8
+    description Utf8     DEFAULT ""
+    owner       Utf8     DEFAULT ""
+    archived    Boolean  DEFAULT false
+    createdAt   Utf8     DEFAULT now()
+    modifiedAt  Utf8     DEFAULT now()
+}
+
+model HotlistAcl {
+    id             Int32    PRIMARY KEY AUTOINCREMENT
+    hotlistId      Int32
+    identityType   Utf8
+    identityValue  Utf8
+    permission     Utf8
+    createdAt      Utf8     DEFAULT now()
+
+    FOREIGN KEY (hotlistId) REFERENCES Hotlist (id)
+    UNIQUE (hotlistId, identityType, identityValue)
+}
+
+model HotlistIssue {
+    id        Int32    PRIMARY KEY AUTOINCREMENT
+    hotlistId Int32
+    issueId   Int32
+    position  Int32    DEFAULT 0
+    addedAt   Utf8     DEFAULT now()
+    addedBy   Utf8     DEFAULT ""
+
+    FOREIGN KEY (hotlistId) REFERENCES Hotlist (id)
+    FOREIGN KEY (issueId) REFERENCES Issue (id)
+    UNIQUE (hotlistId, issueId)
+}
+
+model EventLog {
+    id         Int32    PRIMARY KEY AUTOINCREMENT
+    eventTime  Utf8     DEFAULT now()
+    eventType  Utf8
+    actor      Utf8
+    entityType Utf8
+    entityId   Int32
+    payload    Utf8     DEFAULT "{}"
+}
+
+model Group {
+    id            Int32    PRIMARY KEY AUTOINCREMENT
+    name          Utf8     UNIQUE
+    displayName   Utf8     DEFAULT ""
+    description   Utf8     DEFAULT ""
+    creator       Utf8
+    createdAt     Utf8     DEFAULT now()
+    updatedAt     Utf8     DEFAULT now()
+}
+
+model GroupMember {
+    id            Int32    PRIMARY KEY AUTOINCREMENT
+    groupId       Int32
+    memberType    Utf8
+    memberValue   Utf8
+    role          Utf8     DEFAULT "MEMBER"
+    addedBy       Utf8     DEFAULT ""
+    createdAt     Utf8     DEFAULT now()
+
+    FOREIGN KEY (groupId) REFERENCES Group (id)
+    UNIQUE (groupId, memberType, memberValue)
+    INDEX (memberValue)
+}

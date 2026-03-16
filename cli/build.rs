@@ -1,0 +1,20 @@
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tonic_build::configure()
+        .build_server(false)
+        .build_client(true)
+        .compile_protos(
+            &[
+                "../proto/issuetracker/v1/common.proto",
+                "../proto/issuetracker/v1/component.proto",
+                "../proto/issuetracker/v1/issue.proto",
+                "../proto/issuetracker/v1/comment.proto",
+                "../proto/issuetracker/v1/hotlist.proto",
+                "../proto/issuetracker/v1/search.proto",
+                "../proto/issuetracker/v1/event_log.proto",
+                "../proto/issuetracker/v1/acl.proto",
+                "../proto/identity/v1/group.proto",
+            ],
+            &["../proto"],
+        )?;
+    Ok(())
+}

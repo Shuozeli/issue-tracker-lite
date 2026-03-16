@@ -1,0 +1,36 @@
+[package]
+name = "issuetracker-demo"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "it-demo"
+path = "src/main.rs"
+
+[dependencies]
+# Server (library crate) for in-process startup
+issuetracker-server = { path = "../server" }
+identity = { path = "../identity" }
+
+# ORM + driver for DB init
+quiver-driver-core = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+quiver-driver-sqlite = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+quiver-schema = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+quiver-codegen = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+quiver-error = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+
+# Async
+tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+
+# gRPC server
+tonic = "0.12"
+
+# CLI arg parsing
+clap = { version = "4", features = ["derive", "env"] }
+
+# Temp DB
+tempfile = "3"
+
+# Error handling
+anyhow = "1"

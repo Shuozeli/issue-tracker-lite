@@ -1,0 +1,197 @@
+syntax = "proto3";
+
+package issuetracker.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+
+service IssueService {
+  rpc CreateIssue(CreateIssueRequest) returns (Issue);
+  rpc GetIssue(GetIssueRequest) returns (Issue);
+  rpc ListIssues(ListIssuesRequest) returns (ListIssuesResponse);
+  rpc UpdateIssue(UpdateIssueRequest) returns (Issue);
+  // Relationships
+  rpc AddParent(AddParentRequest) returns (RelationshipResponse);
+  rpc RemoveParent(RemoveParentRequest) returns (RelationshipResponse);
+  rpc ListParents(ListRelatedIssuesRequest) returns (ListRelatedIssuesResponse);
+  rpc ListChildren(ListRelatedIssuesRequest) returns (ListRelatedIssuesResponse);
+  rpc AddBlocking(AddBlockingRequest) returns (RelationshipResponse);
+  rpc RemoveBlocking(RemoveBlockingRequest) returns (RelationshipResponse);
+  rpc MarkDuplicate(MarkDuplicateRequest) returns (Issue);
+  rpc UnmarkDuplicate(UnmarkDuplicateRequest) returns (Issue);
+}
+
+// --- Enums ---
+
+enum IssueType {
+  ISSUE_TYPE_UNSPECIFIED = 0;
+  BUG = 1;
+  FEATURE_REQUEST = 2;
+  CUSTOMER_ISSUE = 3;
+  INTERNAL_CLEANUP = 4;
+  PROCESS = 5;
+  VULNERABILITY = 6;
+  PRIVACY_ISSUE = 7;
+  PROGRAM = 8;
+  PROJECT = 9;
+  FEATURE = 10;
+  MILESTONE = 11;
+  EPIC = 12;
+  STORY = 13;
+  TASK = 14;
+}
+
+enum Priority {
+  PRIORITY_UNSPECIFIED = 0;
+  P0 = 1;
+  P1 = 2;
+  P2 = 3;
+  P3 = 4;
+  P4 = 5;
+}
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  S0 = 1;
+  S1 = 2;
+  S2 = 3;
+  S3 = 4;
+  S4 = 5;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  // Open statuses
+  NEW = 1;
+  ASSIGNED = 2;
+  IN_PROGRESS = 3;
+  INACTIVE = 4;
+  // Closed statuses
+  FIXED = 5;
+  FIXED_VERIFIED = 6;
+  WONT_FIX_INFEASIBLE = 7;
+  WONT_FIX_NOT_REPRODUCIBLE = 8;
+  WONT_FIX_OBSOLETE = 9;
+  WONT_FIX_INTENDED_BEHAVIOR = 10;
+  DUPLICATE = 11;
+}
+
+// --- Messages ---
+
+message Issue {
+  int64 issue_id = 1;
+  string title = 2;
+  string description = 3;
+  Status status = 4;
+  Priority priority = 5;
+  Severity severity = 6;
+  IssueType type = 7;
+  int64 component_id = 8;
+  string assignee = 9;
+  string reporter = 10;
+  string verifier = 11;
+  google.protobuf.Timestamp create_time = 12;
+  google.protobuf.Timestamp modify_time = 13;
+  optional google.protobuf.Timestamp resolve_time = 14;
+  optional google.protobuf.Timestamp verify_time = 15;
+  int32 vote_count = 16;
+  int32 duplicate_count = 17;
+  string found_in = 18;
+  string targeted_to = 19;
+  string verified_in = 20;
+  bool in_prod = 21;
+  bool archived = 22;
+  string access_level = 23;  // DEFAULT, LIMITED_COMMENTING, LIMITED_VISIBILITY
+}
+
+message CreateIssueRequest {
+  int64 component_id = 1;
+  string title = 2;
+  string description = 3;
+  Priority priority = 4;
+  IssueType type = 5;
+  optional Severity severity = 6;
+  optional string assignee = 7;
+  optional string reporter = 8;
+  optional string verifier = 9;
+  optional string found_in = 10;
+  optional string targeted_to = 11;
+}
+
+message GetIssueRequest {
+  int64 issue_id = 1;
+}
+
+message ListIssuesRequest {
+  int64 component_id = 1;
+  // Filter: "open", "closed", "all" (default: "open")
+  string status_filter = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListIssuesResponse {
+  repeated Issue issues = 1;
+  string next_page_token = 2;
+}
+
+message UpdateIssueRequest {
+  int64 issue_id = 1;
+  optional string title = 2;
+  optional string description = 3;
+  optional Status status = 4;
+  optional Priority priority = 5;
+  optional Severity severity = 6;
+  optional IssueType type = 7;
+  optional int64 component_id = 8;
+  optional string assignee = 9;
+  optional string reporter = 10;
+  optional string verifier = 11;
+  optional string found_in = 12;
+  optional string targeted_to = 13;
+  optional string verified_in = 14;
+  optional bool in_prod = 15;
+  optional bool archived = 16;
+  google.protobuf.FieldMask update_mask = 17;
+}
+
+// --- Relationship messages ---
+
+message AddParentRequest {
+  int64 child_id = 1;
+  int64 parent_id = 2;
+}
+
+message RemoveParentRequest {
+  int64 child_id = 1;
+  int64 parent_id = 2;
+}
+
+message AddBlockingRequest {
+  int64 blocking_id = 1;
+  int64 blocked_id = 2;
+}
+
+message RemoveBlockingRequest {
+  int64 blocking_id = 1;
+  int64 blocked_id = 2;
+}
+
+message MarkDuplicateRequest {
+  int64 issue_id = 1;
+  int64 canonical_id = 2;
+}
+
+message UnmarkDuplicateRequest {
+  int64 issue_id = 1;
+}
+
+message ListRelatedIssuesRequest {
+  int64 issue_id = 1;
+}
+
+message ListRelatedIssuesResponse {
+  repeated Issue issues = 1;
+}
+
+message RelationshipResponse {}

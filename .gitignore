@@ -1,0 +1,33 @@
+# Build
+target/
+node_modules/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Environment
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Crawled data (not for redistribution)
+crawler/docs-output/
+crawler/exploration/
+
+# UI debug artifacts
+ui/demo-errors/
+ui/demo-recordings/
+ui/test-results/
+
+# Temp
+/tmp/

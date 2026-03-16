@@ -1,0 +1,28 @@
+[package]
+name = "identity"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Quiver ORM
+quiver-driver-core = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+quiver-driver-sqlite = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+quiver-query = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+quiver-error = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "2"
+
+# Logging
+tracing = "0.1"
+
+# Time
+chrono = "0.4"

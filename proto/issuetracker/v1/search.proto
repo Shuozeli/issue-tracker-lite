@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package issuetracker.v1;
+
+import "issuetracker/v1/issue.proto";
+
+service SearchService {
+  rpc SearchIssues(SearchIssuesRequest) returns (SearchIssuesResponse);
+}
+
+message SearchIssuesRequest {
+  // Query string, e.g. "status:open priority:P0 memory leak"
+  string query = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+  // Order by field: "created", "modified", "priority" (default: "modified")
+  string order_by = 4;
+  // Order direction: "asc" or "desc" (default: "desc")
+  string order_direction = 5;
+}
+
+message SearchIssuesResponse {
+  repeated Issue issues = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}

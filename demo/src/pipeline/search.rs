@@ -1,0 +1,142 @@
+use super::{step, step_assert, Pipeline};
+
+pub fn pipeline() -> Pipeline {
+    Pipeline {
+        name: "search",
+        summary: "Create diverse issues and demonstrate search query syntax",
+        steps: vec![
+            step_assert(
+                "Create component: SearchDemo",
+                &["--user", "admin@demo.com", "component", "create", "SearchDemo", "--description", "Component for search demos"],
+                &["SearchDemo"],
+            ),
+            step(
+                "Grant admin on component 1",
+                &["--user", "admin@demo.com", "acl", "set-component", "1",
+                  "--identity-type", "user", "--identity-value", "admin@demo.com",
+                  "--permissions", "ADMIN_COMPONENTS"],
+            ),
+            step_assert(
+                "Create P0 BUG: Memory leak in connection pool",
+                &[
+                    "--user", "admin@demo.com",
+                    "issue", "create",
+                    "--component", "1",
+                    "--title", "Memory leak in connection pool",
+                    "--priority", "P0",
+                    "--type", "BUG",
+                    "--assignee", "alice@example.com",
+                    "--severity", "S1",
+                ],
+                &["Memory leak in connection pool"],
+            ),
+            step_assert(
+                "Create P1 BUG: Crash on invalid UTF-8 input",
+                &[
+                    "--user", "admin@demo.com",
+                    "issue", "create",
+                    "--component", "1",
+                    "--title", "Crash on invalid UTF-8 input",
+                    "--priority", "P1",
+                    "--type", "BUG",
+                    "--assignee", "bob@example.com",
+                ],
+                &["Crash on invalid UTF-8 input"],
+            ),
+            step_assert(
+                "Create P2 FEATURE_REQUEST: Add GraphQL endpoint",
+                &[
+                    "--user", "admin@demo.com",
+                    "issue", "create",
+                    "--component", "1",
+                    "--title", "Add GraphQL endpoint for mobile clients",
+                    "--priority", "P2",
+                    "--type", "FEATURE_REQUEST",
+                    "--assignee", "carol@example.com",
+                ],
+                &["Add GraphQL endpoint for mobile clients"],
+            ),
+            step_assert(
+                "Create P1 VULNERABILITY: SQL injection in search",
+                &[
+                    "--user", "admin@demo.com",
+                    "issue", "create",
+                    "--component", "1",
+                    "--title", "SQL injection vulnerability in search endpoint",
+                    "--priority", "P1",
+                    "--type", "VULNERABILITY",
+                    "--severity", "S0",
+                    "--assignee", "alice@example.com",
+                ],
+                &["SQL injection vulnerability in search endpoint"],
+            ),
+            step_assert(
+                "Create P3 INTERNAL_CLEANUP: Remove deprecated API",
+                &[
+                    "--user", "admin@demo.com",
+                    "issue", "create",
+                    "--component", "1",
+                    "--title", "Remove deprecated v1 API endpoints",
+                    "--priority", "P3",
+                    "--type", "INTERNAL_CLEANUP",
+                ],
+                &["Remove deprecated v1 API endpoints"],
+            ),
+            step_assert(
+                "Fix the memory leak (mark as FIXED)",
+                &["--user", "admin@demo.com", "issue", "update", "1", "--status", "FIXED"],
+                &["FIXED"],
+            ),
+            step_assert(
+                "Search: all open issues",
+                &["--user", "admin@demo.com", "search", "status:open"],
+                &["Crash"],
+            ),
+            step_assert(
+                "Search: closed issues",
+                &["--user", "admin@demo.com", "search", "status:closed"],
+                &["Memory leak"],
+            ),
+            step_assert(
+                "Search: high priority (P0 and P1)",
+                &["--user", "admin@demo.com", "search", "priority:P0"],
+                &["Memory leak"],
+            ),
+            step_assert(
+                "Search: issues assigned to alice",
+                &["--user", "admin@demo.com", "search", "assignee:alice@example.com"],
+                &["alice"],
+            ),
+            step_assert(
+                "Search: bugs only",
+                &["--user", "admin@demo.com", "search", "type:BUG"],
+                &["BUG"],
+            ),
+            step_assert(
+                "Search: keyword 'memory'",
+                &["--user", "admin@demo.com", "search", "memory"],
+                &["Memory leak"],
+            ),
+            step_assert(
+                "Search: keyword 'injection' (finds SQL injection)",
+                &["--user", "admin@demo.com", "search", "injection"],
+                &["injection"],
+            ),
+            step_assert(
+                "Search: combined -- open P1 bugs",
+                &["--user", "admin@demo.com", "search", "status:open priority:P1 type:BUG"],
+                &["Crash"],
+            ),
+            step_assert(
+                "Search: ordered by priority ascending (open issues)",
+                &["--user", "admin@demo.com", "search", "status:open", "--order-by", "priority", "--order-dir", "asc"],
+                &["Crash"],
+            ),
+            step_assert(
+                "Search: negation -- not bugs",
+                &["--user", "admin@demo.com", "search", "--", "-type:BUG"],
+                &["GraphQL"],
+            ),
+        ],
+    }
+}

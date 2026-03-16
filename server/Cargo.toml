@@ -1,0 +1,60 @@
+[package]
+name = "issuetracker-server"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "issuetracker_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "issuetracker-server"
+path = "src/main.rs"
+
+[[test]]
+name = "e2e"
+path = "tests/e2e.rs"
+
+[dependencies]
+# gRPC
+tonic = "0.12"
+prost = "0.13"
+prost-types = "0.13"
+
+# Identity
+identity = { path = "../identity" }
+
+# Quiver ORM
+quiver-driver-core = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+quiver-driver-sqlite = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+quiver-query = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+quiver-error = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+quiver-schema = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+quiver-codegen = { git = "https://github.com/Shuozeli/quiver-orm.git", rev = "3e378a6" }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Time
+chrono = "0.4"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+
+[build-dependencies]
+tonic-build = "0.12"
