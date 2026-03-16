@@ -4,7 +4,7 @@ use crate::error::IdentityError;
 pub const MAX_NESTING_DEPTH: usize = 3;
 
 /// Validate a group name.
-/// Format: [a-z0-9][a-z0-9-]{1,62}[a-z0-9]
+/// Format: `[a-z0-9][a-z0-9-]{1,62}[a-z0-9]`
 /// - 3 to 64 characters
 /// - lowercase alphanumeric and hyphens only
 /// - no leading/trailing hyphens
