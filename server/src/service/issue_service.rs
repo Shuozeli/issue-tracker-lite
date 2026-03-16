@@ -3,21 +3,21 @@ use quiver_query::{Filter, Order, Query};
 use serde_json::json;
 use tonic::{Request, Response, Status};
 
-use crate::db::DbConn;
 use crate::db::row_mapping::{Issue, IssueBlocking, IssueParent};
+use crate::db::DbConn;
 use crate::domain::permissions;
 use crate::domain::status_machine;
 use crate::domain::types::DomainError;
+use identity::IdentityProvider;
 use std::collections::HashSet;
 use std::sync::Arc;
-use identity::IdentityProvider;
 
 use crate::proto::issue_service_server::IssueService;
 use crate::proto::{
-    AddBlockingRequest, AddParentRequest, CreateIssueRequest, GetIssueRequest,
-    Issue as ProtoIssue, ListIssuesRequest, ListIssuesResponse, ListRelatedIssuesRequest,
-    ListRelatedIssuesResponse, MarkDuplicateRequest, RelationshipResponse, RemoveBlockingRequest,
-    RemoveParentRequest, UnmarkDuplicateRequest, UpdateIssueRequest,
+    AddBlockingRequest, AddParentRequest, CreateIssueRequest, GetIssueRequest, Issue as ProtoIssue,
+    ListIssuesRequest, ListIssuesResponse, ListRelatedIssuesRequest, ListRelatedIssuesResponse,
+    MarkDuplicateRequest, RelationshipResponse, RemoveBlockingRequest, RemoveParentRequest,
+    UnmarkDuplicateRequest, UpdateIssueRequest,
 };
 
 pub struct IssueServiceImpl {
@@ -40,7 +40,9 @@ fn proto_status_to_str(status: i32) -> Result<String, DomainError> {
     let s = ProtoStatus::try_from(status)
         .map_err(|_| DomainError::InvalidArgument(format!("unknown status value: {status}")))?;
     if s == ProtoStatus::Unspecified {
-        return Err(DomainError::InvalidArgument("status must be specified".into()));
+        return Err(DomainError::InvalidArgument(
+            "status must be specified".into(),
+        ));
     }
     Ok(s.as_str_name().to_string())
 }
@@ -53,13 +55,17 @@ fn proto_priority_to_str(priority: i32) -> Result<String, DomainError> {
     let p = ProtoPriority::try_from(priority)
         .map_err(|_| DomainError::InvalidArgument(format!("unknown priority value: {priority}")))?;
     if p == ProtoPriority::Unspecified {
-        return Err(DomainError::InvalidArgument("priority must be specified".into()));
+        return Err(DomainError::InvalidArgument(
+            "priority must be specified".into(),
+        ));
     }
     Ok(p.as_str_name().to_string())
 }
 
 fn str_to_proto_priority(s: &str) -> i32 {
-    ProtoPriority::from_str_name(s).map(|v| v as i32).unwrap_or(0)
+    ProtoPriority::from_str_name(s)
+        .map(|v| v as i32)
+        .unwrap_or(0)
 }
 
 fn proto_severity_to_str(severity: i32) -> Result<String, DomainError> {
@@ -72,20 +78,27 @@ fn proto_severity_to_str(severity: i32) -> Result<String, DomainError> {
 }
 
 fn str_to_proto_severity(s: &str) -> i32 {
-    ProtoSeverity::from_str_name(s).map(|v| v as i32).unwrap_or(0)
+    ProtoSeverity::from_str_name(s)
+        .map(|v| v as i32)
+        .unwrap_or(0)
 }
 
 fn proto_issue_type_to_str(issue_type: i32) -> Result<String, DomainError> {
-    let t = ProtoIssueType::try_from(issue_type)
-        .map_err(|_| DomainError::InvalidArgument(format!("unknown issue type value: {issue_type}")))?;
+    let t = ProtoIssueType::try_from(issue_type).map_err(|_| {
+        DomainError::InvalidArgument(format!("unknown issue type value: {issue_type}"))
+    })?;
     if t == ProtoIssueType::Unspecified {
-        return Err(DomainError::InvalidArgument("type must be specified".into()));
+        return Err(DomainError::InvalidArgument(
+            "type must be specified".into(),
+        ));
     }
     Ok(t.as_str_name().to_string())
 }
 
 fn str_to_proto_issue_type(s: &str) -> i32 {
-    ProtoIssueType::from_str_name(s).map(|v| v as i32).unwrap_or(0)
+    ProtoIssueType::from_str_name(s)
+        .map(|v| v as i32)
+        .unwrap_or(0)
 }
 
 fn parse_timestamp(s: &str) -> Option<prost_types::Timestamp> {
@@ -257,11 +270,18 @@ impl IssueService for IssueServiceImpl {
         let severity = proto_severity_to_str(req.severity.unwrap_or(0))?;
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -271,18 +291,16 @@ impl IssueService for IssueServiceImpl {
         // Validate component exists
         let comp_stmt = Query::table("Component")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(req.component_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.component_id)))
             .build();
         let comp_row = tx
             .query_optional(&comp_stmt)
             .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         if comp_row.is_none() {
-            return Err(DomainError::NotFound(format!(
-                "component {} not found",
-                req.component_id
-            ))
-            .into());
+            return Err(
+                DomainError::NotFound(format!("component {} not found", req.component_id)).into(),
+            );
         }
 
         permissions::check_component_permission_quiver(
@@ -312,12 +330,24 @@ impl IssueService for IssueServiceImpl {
             .set("priority", Value::Text(priority))
             .set("severity", Value::Text(severity))
             .set("issueType", Value::Text(issue_type))
-            .set("componentId", Value::Int(req.component_id as i64))
+            .set("componentId", Value::Int(req.component_id))
             .set("assignee", Value::Text(assignee.clone()))
-            .set("reporter", Value::Text(req.reporter.clone().unwrap_or_default()))
-            .set("verifier", Value::Text(req.verifier.clone().unwrap_or_default()))
-            .set("foundIn", Value::Text(req.found_in.clone().unwrap_or_default()))
-            .set("targetedTo", Value::Text(req.targeted_to.clone().unwrap_or_default()))
+            .set(
+                "reporter",
+                Value::Text(req.reporter.clone().unwrap_or_default()),
+            )
+            .set(
+                "verifier",
+                Value::Text(req.verifier.clone().unwrap_or_default()),
+            )
+            .set(
+                "foundIn",
+                Value::Text(req.found_in.clone().unwrap_or_default()),
+            )
+            .set(
+                "targetedTo",
+                Value::Text(req.targeted_to.clone().unwrap_or_default()),
+            )
             .set("verifiedIn", Value::Text(String::new()))
             .set("inProd", Value::Bool(false))
             .set("archived", Value::Bool(false))
@@ -379,11 +409,18 @@ impl IssueService for IssueServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -392,7 +429,7 @@ impl IssueService for IssueServiceImpl {
 
         let stmt = Query::table("Issue")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(req.issue_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.issue_id)))
             .build();
         let row_opt = tx
             .query_optional(&stmt)
@@ -438,11 +475,18 @@ impl IssueService for IssueServiceImpl {
         };
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -476,7 +520,7 @@ impl IssueService for IssueServiceImpl {
             Value::Text("DUPLICATE".to_string()),
         ];
 
-        let component_filter = Filter::eq("componentId", Value::Int(req.component_id as i64));
+        let component_filter = Filter::eq("componentId", Value::Int(req.component_id));
         let status_filter = match req.status_filter.as_str() {
             "closed" => Some(Filter::is_in("status", closed_statuses)),
             "all" => None,
@@ -495,9 +539,10 @@ impl IssueService for IssueServiceImpl {
             .limit(page_size as u64);
 
         if !req.page_token.is_empty() {
-            let cursor_id = req.page_token.parse::<i64>().map_err(|_| {
-                DomainError::InvalidArgument("invalid page_token".to_string())
-            })?;
+            let cursor_id = req
+                .page_token
+                .parse::<i64>()
+                .map_err(|_| DomainError::InvalidArgument("invalid page_token".to_string()))?;
             query_builder = query_builder.filter(Filter::lt("id", Value::Int(cursor_id)));
         }
 
@@ -507,13 +552,13 @@ impl IssueService for IssueServiceImpl {
             .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-        let issues: Vec<Issue> = rows.iter().map(|r| Issue::try_from(r).map_err(DomainError::from)).collect::<Result<_, _>>()?;
+        let issues: Vec<Issue> = rows
+            .iter()
+            .map(|r| Issue::try_from(r).map_err(DomainError::from))
+            .collect::<Result<_, _>>()?;
 
         let next_page_token = if issues.len() == page_size as usize {
-            issues
-                .last()
-                .map(|i| i.id.to_string())
-                .unwrap_or_default()
+            issues.last().map(|i| i.id.to_string()).unwrap_or_default()
         } else {
             String::new()
         };
@@ -560,11 +605,18 @@ impl IssueService for IssueServiceImpl {
         };
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -588,26 +640,22 @@ impl IssueService for IssueServiceImpl {
         if let Some(component_id) = req.component_id {
             let comp_stmt = Query::table("Component")
                 .find_first()
-                .filter(Filter::eq("id", Value::Int(component_id as i64)))
+                .filter(Filter::eq("id", Value::Int(component_id)))
                 .build();
             let comp_row = tx
                 .query_optional(&comp_stmt)
                 .await
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
             if comp_row.is_none() {
-                return Err(DomainError::NotFound(format!(
-                    "component {component_id} not found"
-                ))
-                .into());
+                return Err(
+                    DomainError::NotFound(format!("component {component_id} not found")).into(),
+                );
             }
         }
 
         // Determine assignee change for auto-transitions
         let assignee_changed = req.assignee.is_some();
-        let new_assignee = req
-            .assignee
-            .as_deref()
-            .unwrap_or(&existing.assignee);
+        let new_assignee = req.assignee.as_deref().unwrap_or(&existing.assignee);
 
         // Determine status
         let mut new_status = if let Some(status_val) = req.status {
@@ -663,7 +711,7 @@ impl IssueService for IssueServiceImpl {
             update = update.set("issueType", Value::Text(it.clone()));
         }
         if let Some(cid) = req.component_id {
-            update = update.set("componentId", Value::Int(cid as i64));
+            update = update.set("componentId", Value::Int(cid));
         }
         if let Some(ref a) = req.assignee {
             update = update.set("assignee", Value::Text(a.clone()));
@@ -698,7 +746,7 @@ impl IssueService for IssueServiceImpl {
         update = update.set("modifiedAt", Value::Text(now.clone()));
 
         let update_stmt = update
-            .filter(Filter::eq("id", Value::Int(req.issue_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.issue_id)))
             .build();
         tx.execute(&update_stmt)
             .await
@@ -707,7 +755,7 @@ impl IssueService for IssueServiceImpl {
         // Re-fetch the updated issue
         let fetch_stmt = Query::table("Issue")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(req.issue_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.issue_id)))
             .build();
         let fetch_row = tx
             .query_one(&fetch_stmt)
@@ -746,11 +794,18 @@ impl IssueService for IssueServiceImpl {
         }
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -792,22 +847,20 @@ impl IssueService for IssueServiceImpl {
         // Create the relationship
         let stmt = Query::table("IssueParent")
             .create()
-            .set("childId", Value::Int(req.child_id as i64))
-            .set("parentId", Value::Int(req.parent_id as i64))
+            .set("childId", Value::Int(req.child_id))
+            .set("parentId", Value::Int(req.parent_id))
             .build();
 
-        tx.execute(&stmt)
-            .await
-            .map_err(|e| {
-                if e.to_string().contains("UNIQUE constraint failed") {
-                    DomainError::AlreadyExists(format!(
-                        "parent relationship {}->{} already exists",
-                        req.child_id, req.parent_id
-                    ))
-                } else {
-                    DomainError::Internal(e.to_string())
-                }
-            })?;
+        tx.execute(&stmt).await.map_err(|e| {
+            if e.to_string().contains("UNIQUE constraint failed") {
+                DomainError::AlreadyExists(format!(
+                    "parent relationship {}->{} already exists",
+                    req.child_id, req.parent_id
+                ))
+            } else {
+                DomainError::Internal(e.to_string())
+            }
+        })?;
 
         tx.commit()
             .await
@@ -823,11 +876,18 @@ impl IssueService for IssueServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -850,8 +910,8 @@ impl IssueService for IssueServiceImpl {
         let find_stmt = Query::table("IssueParent")
             .find_many()
             .filter(Filter::and(vec![
-                Filter::eq("childId", Value::Int(req.child_id as i64)),
-                Filter::eq("parentId", Value::Int(req.parent_id as i64)),
+                Filter::eq("childId", Value::Int(req.child_id)),
+                Filter::eq("parentId", Value::Int(req.parent_id)),
             ]))
             .build();
         let rows = tx
@@ -890,11 +950,18 @@ impl IssueService for IssueServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -915,7 +982,7 @@ impl IssueService for IssueServiceImpl {
 
         let stmt = Query::table("IssueParent")
             .find_many()
-            .filter(Filter::eq("childId", Value::Int(req.issue_id as i64)))
+            .filter(Filter::eq("childId", Value::Int(req.issue_id)))
             .build();
         let rows = tx
             .query(&stmt)
@@ -949,11 +1016,18 @@ impl IssueService for IssueServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -974,7 +1048,7 @@ impl IssueService for IssueServiceImpl {
 
         let stmt = Query::table("IssueParent")
             .find_many()
-            .filter(Filter::eq("parentId", Value::Int(req.issue_id as i64)))
+            .filter(Filter::eq("parentId", Value::Int(req.issue_id)))
             .build();
         let rows = tx
             .query(&stmt)
@@ -1014,11 +1088,18 @@ impl IssueService for IssueServiceImpl {
         }
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -1040,22 +1121,20 @@ impl IssueService for IssueServiceImpl {
 
         let stmt = Query::table("IssueBlocking")
             .create()
-            .set("blockingId", Value::Int(req.blocking_id as i64))
-            .set("blockedId", Value::Int(req.blocked_id as i64))
+            .set("blockingId", Value::Int(req.blocking_id))
+            .set("blockedId", Value::Int(req.blocked_id))
             .build();
 
-        tx.execute(&stmt)
-            .await
-            .map_err(|e| {
-                if e.to_string().contains("UNIQUE constraint failed") {
-                    DomainError::AlreadyExists(format!(
-                        "blocking relationship {}->{} already exists",
-                        req.blocking_id, req.blocked_id
-                    ))
-                } else {
-                    DomainError::Internal(e.to_string())
-                }
-            })?;
+        tx.execute(&stmt).await.map_err(|e| {
+            if e.to_string().contains("UNIQUE constraint failed") {
+                DomainError::AlreadyExists(format!(
+                    "blocking relationship {}->{} already exists",
+                    req.blocking_id, req.blocked_id
+                ))
+            } else {
+                DomainError::Internal(e.to_string())
+            }
+        })?;
 
         tx.commit()
             .await
@@ -1071,11 +1150,18 @@ impl IssueService for IssueServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -1097,8 +1183,8 @@ impl IssueService for IssueServiceImpl {
         let find_stmt = Query::table("IssueBlocking")
             .find_many()
             .filter(Filter::and(vec![
-                Filter::eq("blockingId", Value::Int(req.blocking_id as i64)),
-                Filter::eq("blockedId", Value::Int(req.blocked_id as i64)),
+                Filter::eq("blockingId", Value::Int(req.blocking_id)),
+                Filter::eq("blockedId", Value::Int(req.blocked_id)),
             ]))
             .build();
         let rows = tx
@@ -1137,18 +1223,25 @@ impl IssueService for IssueServiceImpl {
         let req = request.into_inner();
 
         if req.issue_id == req.canonical_id {
-            return Err(
-                DomainError::InvalidArgument("issue cannot be duplicate of itself".to_string())
-                    .into(),
-            );
+            return Err(DomainError::InvalidArgument(
+                "issue cannot be duplicate of itself".to_string(),
+            )
+            .into());
         }
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -1173,7 +1266,7 @@ impl IssueService for IssueServiceImpl {
         let mut update = Query::table("Issue")
             .update()
             .set("status", Value::Text("DUPLICATE".to_string()))
-            .set("duplicateOfId", Value::Int(req.canonical_id as i64))
+            .set("duplicateOfId", Value::Int(req.canonical_id))
             .set("modifiedAt", Value::Text(now.clone()));
 
         if issue.resolved_at.is_none() {
@@ -1181,7 +1274,7 @@ impl IssueService for IssueServiceImpl {
         }
 
         let update_stmt = update
-            .filter(Filter::eq("id", Value::Int(req.issue_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.issue_id)))
             .build();
         tx.execute(&update_stmt)
             .await
@@ -1190,7 +1283,7 @@ impl IssueService for IssueServiceImpl {
         // Re-fetch the updated issue
         let fetch_stmt = Query::table("Issue")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(req.issue_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.issue_id)))
             .build();
         let fetch_row = tx
             .query_one(&fetch_stmt)
@@ -1201,9 +1294,12 @@ impl IssueService for IssueServiceImpl {
         // Increment duplicate_count on canonical
         let dup_count_stmt = Query::table("Issue")
             .update()
-            .set("duplicateCount", Value::Int((canonical.duplicate_count + 1) as i64))
+            .set(
+                "duplicateCount",
+                Value::Int((canonical.duplicate_count + 1) as i64),
+            )
             .set("modifiedAt", Value::Text(chrono::Utc::now().to_rfc3339()))
-            .filter(Filter::eq("id", Value::Int(req.canonical_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.canonical_id)))
             .build();
         tx.execute(&dup_count_stmt)
             .await
@@ -1223,11 +1319,18 @@ impl IssueService for IssueServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -1268,7 +1371,7 @@ impl IssueService for IssueServiceImpl {
             .update()
             .set("status", Value::Text(new_status.to_string()))
             .set("modifiedAt", Value::Text(now.clone()))
-            .filter(Filter::eq("id", Value::Int(req.issue_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.issue_id)))
             .build();
         tx.execute(&update_stmt)
             .await
@@ -1277,7 +1380,7 @@ impl IssueService for IssueServiceImpl {
         // Re-fetch the updated issue
         let fetch_stmt = Query::table("Issue")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(req.issue_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.issue_id)))
             .build();
         let fetch_row = tx
             .query_one(&fetch_stmt)

@@ -5,19 +5,19 @@ use quiver_driver_core::{Connection, Pool, Transaction, Transactional, Value};
 use quiver_query::{Filter, Query};
 use tonic::{Request, Response, Status};
 
-use crate::db::DbConn;
 use crate::db::row_mapping::{Component, ComponentAcl, HotlistAcl, Issue};
+use crate::db::DbConn;
 use crate::domain::permissions::{
-    self, ComponentPermission, expand_permissions, expanded_access_permission,
+    self, expand_permissions, expanded_access_permission, ComponentPermission,
 };
 use crate::domain::types::DomainError;
 use crate::proto::acl_service_server::AclService;
 use crate::proto::{
-    CheckComponentPermissionRequest, CheckComponentPermissionResponse,
-    ComponentAclEntry, GetComponentAclRequest, GetComponentAclResponse,
-    GetHotlistAclRequest, GetHotlistAclResponse, HotlistAclEntry,
-    RemoveComponentAclRequest, RemoveComponentAclResponse, RemoveHotlistAclRequest,
-    RemoveHotlistAclResponse, SetComponentAclRequest, SetHotlistAclRequest,
+    CheckComponentPermissionRequest, CheckComponentPermissionResponse, ComponentAclEntry,
+    GetComponentAclRequest, GetComponentAclResponse, GetHotlistAclRequest, GetHotlistAclResponse,
+    HotlistAclEntry, RemoveComponentAclRequest, RemoveComponentAclResponse,
+    RemoveHotlistAclRequest, RemoveHotlistAclResponse, SetComponentAclRequest,
+    SetHotlistAclRequest,
 };
 
 pub struct AclServiceImpl {
@@ -39,11 +39,10 @@ fn parse_timestamp(s: &str) -> Option<prost_types::Timestamp> {
 }
 
 fn component_acl_to_proto(acl: &ComponentAcl) -> ComponentAclEntry {
-    let perms_json: Vec<String> =
-        serde_json::from_str(&acl.permissions).unwrap_or_default();
+    let perms_json: Vec<String> = serde_json::from_str(&acl.permissions).unwrap_or_default();
     let proto_perms: Vec<i32> = perms_json
         .iter()
-        .filter_map(|s| ComponentPermission::from_str(s).ok())
+        .filter_map(|s| ComponentPermission::parse(s).ok())
         .map(|p| p.to_proto())
         .collect();
 
@@ -126,10 +125,9 @@ impl AclService for AclServiceImpl {
         }
 
         if req.permissions.is_empty() {
-            return Err(DomainError::InvalidArgument(
-                "permissions must not be empty".to_string(),
-            )
-            .into());
+            return Err(
+                DomainError::InvalidArgument("permissions must not be empty".to_string()).into(),
+            );
         }
 
         // Validate and convert permissions
@@ -141,7 +139,10 @@ impl AclService for AclServiceImpl {
         let perms_json = serde_json::to_string(&perm_strings)
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -200,10 +201,8 @@ impl AclService for AclServiceImpl {
                 .await
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-            let fetch = Query::raw(
-                "SELECT * FROM ComponentAcl WHERE id = last_insert_rowid()",
-            )
-            .build();
+            let fetch =
+                Query::raw("SELECT * FROM ComponentAcl WHERE id = last_insert_rowid()").build();
             let row = tx
                 .query_one(&fetch)
                 .await
@@ -224,7 +223,10 @@ impl AclService for AclServiceImpl {
     ) -> Result<Response<GetComponentAclResponse>, Status> {
         let req = request.into_inner();
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -264,7 +266,10 @@ impl AclService for AclServiceImpl {
 
         let identity_type = permissions::identity_type_from_proto(req.identity_type)?;
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -327,7 +332,10 @@ impl AclService for AclServiceImpl {
             .into());
         }
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -406,7 +414,10 @@ impl AclService for AclServiceImpl {
     ) -> Result<Response<GetHotlistAclResponse>, Status> {
         let req = request.into_inner();
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -446,7 +457,10 @@ impl AclService for AclServiceImpl {
 
         let identity_type = permissions::identity_type_from_proto(req.identity_type)?;
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -498,9 +512,16 @@ impl AclService for AclServiceImpl {
     ) -> Result<Response<CheckComponentPermissionResponse>, Status> {
         let req = request.into_inner();
 
-        let user_groups = self.identity.resolve_user_groups(&req.user_id).await.unwrap_or_default();
+        let user_groups = self
+            .identity
+            .resolve_user_groups(&req.user_id)
+            .await
+            .unwrap_or_default();
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -541,7 +562,7 @@ impl AclService for AclServiceImpl {
                     serde_json::from_str(&acl.permissions).unwrap_or_default();
                 let perms: Vec<ComponentPermission> = perm_strings
                     .iter()
-                    .filter_map(|s| ComponentPermission::from_str(s).ok())
+                    .filter_map(|s| ComponentPermission::parse(s).ok())
                     .collect();
                 let expanded = expand_permissions(&perms);
                 all_perms.extend(expanded);
@@ -575,7 +596,7 @@ impl AclService for AclServiceImpl {
                 if comp.expanded_access_enabled {
                     let issue_stmt = Query::table("Issue")
                         .find_first()
-                        .filter(Filter::eq("id", Value::Int(issue_id as i64)))
+                        .filter(Filter::eq("id", Value::Int(issue_id)))
                         .build();
                     let issue_row = tx
                         .query_optional(&issue_stmt)

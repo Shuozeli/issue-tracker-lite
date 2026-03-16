@@ -34,13 +34,16 @@ pub async fn handle(
 
     let _ = &channel;
 
-    let response = call!(search_issues, SearchIssuesRequest {
-        query,
-        page_size,
-        page_token,
-        order_by,
-        order_direction,
-    })?;
+    let response = call!(
+        search_issues,
+        SearchIssuesRequest {
+            query,
+            page_size,
+            page_token,
+            order_by,
+            order_direction,
+        }
+    )?;
     let resp = response.into_inner();
 
     println!("Found {} total results", resp.total_count);

@@ -141,12 +141,14 @@ async fn main() -> Result<()> {
             page_token,
         } => {
             commands::events::handle(
-                entity_type,
-                entity_id,
-                event_type,
-                actor,
-                page_size,
-                page_token,
+                commands::events::EventsParams {
+                    entity_type,
+                    entity_id,
+                    event_type,
+                    actor,
+                    page_size,
+                    page_token,
+                },
                 &cli.server,
                 cli.user.as_deref(),
             )

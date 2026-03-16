@@ -5,8 +5,8 @@ use quiver_driver_core::{Connection, Pool, Transaction, Transactional, Value};
 use quiver_query::{Filter, Order, Query};
 use tonic::{Request, Response, Status};
 
-use crate::db::DbConn;
 use crate::db::row_mapping::{Comment, CommentRevision, Issue};
+use crate::db::DbConn;
 use crate::domain::permissions;
 use crate::domain::types::DomainError;
 use crate::proto::comment_service_server::CommentService;
@@ -76,10 +76,7 @@ async fn fetch_issue<C: Connection>(
     Ok(Issue::try_from(&row)?)
 }
 
-async fn fetch_comment<C: Connection>(
-    conn: &C,
-    comment_id: i64,
-) -> Result<Comment, DomainError> {
+async fn fetch_comment<C: Connection>(conn: &C, comment_id: i64) -> Result<Comment, DomainError> {
     let stmt = Query::table("Comment")
         .find_first()
         .filter(Filter::eq("id", Value::Int(comment_id)))
@@ -137,17 +134,22 @@ impl CommentService for CommentServiceImpl {
         let req = request.into_inner();
 
         if req.body.trim().is_empty() {
-            return Err(
-                DomainError::InvalidArgument("body must not be empty".to_string()).into(),
-            );
+            return Err(DomainError::InvalidArgument("body must not be empty".to_string()).into());
         }
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -168,7 +170,7 @@ impl CommentService for CommentServiceImpl {
 
         let stmt = Query::table("Comment")
             .create()
-            .set("issueId", Value::Int(req.issue_id as i64))
+            .set("issueId", Value::Int(req.issue_id))
             .set("author", Value::Text(req.author))
             .set("body", Value::Text(req.body))
             .set("isDescription", Value::Bool(false))
@@ -211,11 +213,18 @@ impl CommentService for CommentServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -242,14 +251,15 @@ impl CommentService for CommentServiceImpl {
 
         let mut q = Query::table("Comment")
             .find_many()
-            .filter(Filter::eq("issueId", Value::Int(req.issue_id as i64)))
+            .filter(Filter::eq("issueId", Value::Int(req.issue_id)))
             .order_by("createdAt", Order::Asc)
             .limit(page_size as u64);
 
         if !req.page_token.is_empty() {
-            let cursor_id = req.page_token.parse::<i64>().map_err(|_| {
-                DomainError::InvalidArgument("invalid page_token".to_string())
-            })?;
+            let cursor_id = req
+                .page_token
+                .parse::<i64>()
+                .map_err(|_| DomainError::InvalidArgument("invalid page_token".to_string()))?;
             q = q.filter(Filter::gt("id", Value::Int(cursor_id)));
         }
 
@@ -300,17 +310,22 @@ impl CommentService for CommentServiceImpl {
         let req = request.into_inner();
 
         if req.body.trim().is_empty() {
-            return Err(
-                DomainError::InvalidArgument("body must not be empty".to_string()).into(),
-            );
+            return Err(DomainError::InvalidArgument("body must not be empty".to_string()).into());
         }
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -346,7 +361,7 @@ impl CommentService for CommentServiceImpl {
         let now = chrono::Utc::now().to_rfc3339();
         let update_stmt = Query::table("Comment")
             .update()
-            .filter(Filter::eq("id", Value::Int(req.comment_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.comment_id)))
             .set("body", Value::Text(req.body))
             .set("modifiedAt", Value::Text(now))
             .build();
@@ -357,7 +372,7 @@ impl CommentService for CommentServiceImpl {
         // Re-fetch updated row
         let refetch = Query::table("Comment")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(req.comment_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.comment_id)))
             .build();
         let row = tx
             .query_one(&refetch)
@@ -393,11 +408,18 @@ impl CommentService for CommentServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -445,7 +467,7 @@ impl CommentService for CommentServiceImpl {
 
         let update_stmt = Query::table("Comment")
             .update()
-            .filter(Filter::eq("id", Value::Int(req.comment_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.comment_id)))
             .set("hidden", Value::Bool(true))
             .set("hiddenBy", Value::Text(actor.to_string()))
             .set("hiddenAt", Value::Text(now))
@@ -461,7 +483,7 @@ impl CommentService for CommentServiceImpl {
         // Re-fetch updated row
         let refetch = Query::table("Comment")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(req.comment_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.comment_id)))
             .build();
         let row = tx
             .query_one(&refetch)
@@ -495,11 +517,18 @@ impl CommentService for CommentServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -527,14 +556,15 @@ impl CommentService for CommentServiceImpl {
 
         let mut q = Query::table("CommentRevision")
             .find_many()
-            .filter(Filter::eq("commentId", Value::Int(req.comment_id as i64)))
+            .filter(Filter::eq("commentId", Value::Int(req.comment_id)))
             .order_by("createdAt", Order::Desc)
             .limit(page_size as u64);
 
         if !req.page_token.is_empty() {
-            let cursor_id = req.page_token.parse::<i64>().map_err(|_| {
-                DomainError::InvalidArgument("invalid page_token".to_string())
-            })?;
+            let cursor_id = req
+                .page_token
+                .parse::<i64>()
+                .map_err(|_| DomainError::InvalidArgument("invalid page_token".to_string()))?;
             q = q.filter(Filter::gt("id", Value::Int(cursor_id)));
         }
 

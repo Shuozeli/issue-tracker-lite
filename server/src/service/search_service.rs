@@ -5,8 +5,8 @@ use quiver_driver_core::{Connection, Pool, Statement, Transaction, Transactional
 use quiver_query::{Filter, Query};
 use tonic::{Request, Response, Status};
 
-use crate::db::DbConn;
 use crate::db::row_mapping::{Component, HotlistIssue, Issue};
+use crate::db::DbConn;
 use crate::domain::permissions;
 use crate::domain::query_parser::{self, FilterField, FilterOp};
 use crate::domain::types::DomainError;
@@ -86,7 +86,8 @@ impl SearchServiceImpl {
                         conditions.push("status = ?".to_string());
                         params.push(Value::Text(statuses[0].to_string()));
                     } else {
-                        let placeholders = statuses.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        let placeholders =
+                            statuses.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
                         conditions.push(format!("status IN ({})", placeholders));
                         for s in statuses {
                             params.push(Value::Text(s.to_string()));
@@ -99,7 +100,8 @@ impl SearchServiceImpl {
                         conditions.push("status != ?".to_string());
                         params.push(Value::Text(statuses[0].to_string()));
                     } else {
-                        let placeholders = statuses.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        let placeholders =
+                            statuses.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
                         conditions.push(format!("status NOT IN ({})", placeholders));
                         for s in statuses {
                             params.push(Value::Text(s.to_string()));
@@ -201,7 +203,8 @@ impl SearchServiceImpl {
                 (FilterField::HotlistId, FilterOp::Equals) => {
                     if let Ok(id) = filter.value.parse::<i32>() {
                         let issue_ids = Self::get_hotlist_issue_ids(tx, id).await?;
-                        let placeholders = issue_ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        let placeholders =
+                            issue_ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
                         conditions.push(format!("id IN ({})", placeholders));
                         for iid in issue_ids {
                             params.push(Value::Int(iid as i64));
@@ -211,7 +214,8 @@ impl SearchServiceImpl {
                 (FilterField::HotlistId, FilterOp::NotEquals) => {
                     if let Ok(id) = filter.value.parse::<i32>() {
                         let issue_ids = Self::get_hotlist_issue_ids(tx, id).await?;
-                        let placeholders = issue_ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        let placeholders =
+                            issue_ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
                         conditions.push(format!("id NOT IN ({})", placeholders));
                         for iid in issue_ids {
                             params.push(Value::Int(iid as i64));
@@ -223,7 +227,8 @@ impl SearchServiceImpl {
 
         // Keyword search: LIKE on title and description (escape LIKE wildcards)
         for keyword in &parsed.keywords {
-            conditions.push("(title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')".to_string());
+            conditions
+                .push("(title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')".to_string());
             let escaped = keyword
                 .replace('\\', "\\\\")
                 .replace('%', "\\%")
@@ -267,11 +272,18 @@ impl SearchService for SearchServiceImpl {
         };
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -313,9 +325,10 @@ impl SearchService for SearchServiceImpl {
 
         // Cursor-based pagination: filter by id relative to cursor
         if !req.page_token.is_empty() {
-            let cursor_id = req.page_token.parse::<i64>().map_err(|_| {
-                DomainError::InvalidArgument("invalid page_token".to_string())
-            })?;
+            let cursor_id = req
+                .page_token
+                .parse::<i64>()
+                .map_err(|_| DomainError::InvalidArgument("invalid page_token".to_string()))?;
             if order_dir == "DESC" {
                 conditions.push("id < ?".to_string());
             } else {

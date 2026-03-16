@@ -119,27 +119,51 @@ impl TestFixture {
         }
     }
 
-    pub fn component_client(&self) -> ComponentServiceClient<tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>> {
+    pub fn component_client(
+        &self,
+    ) -> ComponentServiceClient<
+        tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>,
+    > {
         ComponentServiceClient::with_interceptor(self.channel.clone(), AdminInterceptor)
     }
 
-    pub fn issue_client(&self) -> IssueServiceClient<tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>> {
+    pub fn issue_client(
+        &self,
+    ) -> IssueServiceClient<
+        tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>,
+    > {
         IssueServiceClient::with_interceptor(self.channel.clone(), AdminInterceptor)
     }
 
-    pub fn comment_client(&self) -> CommentServiceClient<tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>> {
+    pub fn comment_client(
+        &self,
+    ) -> CommentServiceClient<
+        tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>,
+    > {
         CommentServiceClient::with_interceptor(self.channel.clone(), AdminInterceptor)
     }
 
-    pub fn hotlist_client(&self) -> HotlistServiceClient<tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>> {
+    pub fn hotlist_client(
+        &self,
+    ) -> HotlistServiceClient<
+        tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>,
+    > {
         HotlistServiceClient::with_interceptor(self.channel.clone(), AdminInterceptor)
     }
 
-    pub fn search_client(&self) -> SearchServiceClient<tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>> {
+    pub fn search_client(
+        &self,
+    ) -> SearchServiceClient<
+        tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>,
+    > {
         SearchServiceClient::with_interceptor(self.channel.clone(), AdminInterceptor)
     }
 
-    pub fn event_client(&self) -> EventLogServiceClient<tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>> {
+    pub fn event_client(
+        &self,
+    ) -> EventLogServiceClient<
+        tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>,
+    > {
         EventLogServiceClient::with_interceptor(self.channel.clone(), AdminInterceptor)
     }
 
@@ -147,11 +171,18 @@ impl TestFixture {
         HealthServiceClient::new(self.channel.clone())
     }
 
-    pub fn acl_client(&self) -> AclServiceClient<tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>> {
+    pub fn acl_client(
+        &self,
+    ) -> AclServiceClient<tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>>
+    {
         AclServiceClient::with_interceptor(self.channel.clone(), AdminInterceptor)
     }
 
-    pub fn group_client(&self) -> GroupServiceClient<tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>> {
+    pub fn group_client(
+        &self,
+    ) -> GroupServiceClient<
+        tonic::service::interceptor::InterceptedService<Channel, AdminInterceptor>,
+    > {
         GroupServiceClient::with_interceptor(self.channel.clone(), AdminInterceptor)
     }
 
@@ -174,12 +205,14 @@ pub struct AdminInterceptor;
 pub const TEST_ADMIN_USER: &str = "admin@test.com";
 
 impl Interceptor for AdminInterceptor {
-    fn call(&mut self, mut request: tonic::Request<()>) -> Result<tonic::Request<()>, tonic::Status> {
+    fn call(
+        &mut self,
+        mut request: tonic::Request<()>,
+    ) -> Result<tonic::Request<()>, tonic::Status> {
         if request.metadata().get("x-user-id").is_none() {
-            request.metadata_mut().insert(
-                "x-user-id",
-                TEST_ADMIN_USER.parse().unwrap(),
-            );
+            request
+                .metadata_mut()
+                .insert("x-user-id", TEST_ADMIN_USER.parse().unwrap());
         }
         Ok(request)
     }
@@ -259,10 +292,8 @@ pub async fn create_issue(
 /// Helper: create a tonic Request with x-user-id metadata header
 pub fn with_user<T>(user_id: &str, msg: T) -> tonic::Request<T> {
     let mut req = tonic::Request::new(msg);
-    req.metadata_mut().insert(
-        "x-user-id",
-        user_id.parse().unwrap(),
-    );
+    req.metadata_mut()
+        .insert("x-user-id", user_id.parse().unwrap());
     req
 }
 
@@ -274,10 +305,9 @@ impl Interceptor for UserInterceptor {
         &mut self,
         mut request: tonic::Request<()>,
     ) -> Result<tonic::Request<()>, tonic::Status> {
-        request.metadata_mut().insert(
-            "x-user-id",
-            self.0.parse().unwrap(),
-        );
+        request
+            .metadata_mut()
+            .insert("x-user-id", self.0.parse().unwrap());
         Ok(request)
     }
 }

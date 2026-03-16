@@ -1,4 +1,4 @@
-use super::{step, step_assert, step_fail, Pipeline};
+use super::{step, step_fail, Pipeline};
 
 pub fn pipeline() -> Pipeline {
     Pipeline {

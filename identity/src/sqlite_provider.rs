@@ -218,14 +218,8 @@ impl SqliteIdentityProvider {
             .find_first()
             .filter(Filter::and(vec![
                 Filter::eq("groupId", Value::Int(group_id as i64)),
-                Filter::eq(
-                    "memberType",
-                    Value::Text(member_type.as_str().to_string()),
-                ),
-                Filter::eq(
-                    "memberValue",
-                    Value::Text(member_value.to_string()),
-                ),
+                Filter::eq("memberType", Value::Text(member_type.as_str().to_string())),
+                Filter::eq("memberValue", Value::Text(member_value.to_string())),
             ]))
             .build();
         let row = conn
@@ -242,7 +236,10 @@ impl SqliteIdentityProvider {
 #[async_trait]
 impl IdentityProvider for SqliteIdentityProvider {
     async fn resolve_user_groups(&self, user_id: &str) -> Result<Vec<String>, IdentityError> {
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| IdentityError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -269,7 +266,10 @@ impl IdentityProvider for SqliteIdentityProvider {
     ) -> Result<Group, IdentityError> {
         validate_group_name(name)?;
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| IdentityError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -334,7 +334,10 @@ impl IdentityProvider for SqliteIdentityProvider {
     }
 
     async fn get_group(&self, name: &str) -> Result<Group, IdentityError> {
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| IdentityError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -354,7 +357,10 @@ impl IdentityProvider for SqliteIdentityProvider {
     ) -> Result<(Vec<Group>, String), IdentityError> {
         let limit = page_size.clamp(1, 100) as u64;
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| IdentityError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -414,7 +420,10 @@ impl IdentityProvider for SqliteIdentityProvider {
         display_name: Option<&str>,
         description: Option<&str>,
     ) -> Result<Group, IdentityError> {
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| IdentityError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -459,7 +468,10 @@ impl IdentityProvider for SqliteIdentityProvider {
     }
 
     async fn delete_group(&self, name: &str) -> Result<(), IdentityError> {
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| IdentityError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -568,7 +580,10 @@ impl IdentityProvider for SqliteIdentityProvider {
         role: MemberRole,
         added_by: &str,
     ) -> Result<GroupMember, IdentityError> {
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| IdentityError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -603,10 +618,7 @@ impl IdentityProvider for SqliteIdentityProvider {
         let q = Query::table("GroupMember")
             .create()
             .set("groupId", Value::Int(group.id as i64))
-            .set(
-                "memberType",
-                Value::Text(member_type.as_str().to_string()),
-            )
+            .set("memberType", Value::Text(member_type.as_str().to_string()))
             .set("memberValue", Value::Text(member_value.to_string()))
             .set("role", Value::Text(role.as_str().to_string()))
             .set("addedBy", Value::Text(added_by.to_string()))
@@ -618,9 +630,7 @@ impl IdentityProvider for SqliteIdentityProvider {
 
         let member = Self::get_member_row(&tx, group.id, member_type, member_value)
             .await?
-            .ok_or_else(|| {
-                IdentityError::Internal("failed to fetch created member".to_string())
-            })?;
+            .ok_or_else(|| IdentityError::Internal("failed to fetch created member".to_string()))?;
 
         Self::log_event(
             &tx,
@@ -651,7 +661,10 @@ impl IdentityProvider for SqliteIdentityProvider {
         member_type: MemberType,
         member_value: &str,
     ) -> Result<(), IdentityError> {
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| IdentityError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -699,7 +712,10 @@ impl IdentityProvider for SqliteIdentityProvider {
     }
 
     async fn list_members(&self, group_name: &str) -> Result<Vec<GroupMember>, IdentityError> {
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| IdentityError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -737,7 +753,10 @@ impl IdentityProvider for SqliteIdentityProvider {
         member_value: &str,
         new_role: MemberRole,
     ) -> Result<GroupMember, IdentityError> {
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| IdentityError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -765,9 +784,7 @@ impl IdentityProvider for SqliteIdentityProvider {
 
         let updated = Self::get_member_row(&tx, group.id, member_type, member_value)
             .await?
-            .ok_or_else(|| {
-                IdentityError::Internal("failed to fetch updated member".to_string())
-            })?;
+            .ok_or_else(|| IdentityError::Internal("failed to fetch updated member".to_string()))?;
 
         Self::log_event(
             &tx,
@@ -797,7 +814,10 @@ impl IdentityProvider for SqliteIdentityProvider {
         members: &[(MemberType, String, MemberRole)],
         added_by: &str,
     ) -> Result<Vec<GroupMember>, IdentityError> {
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| IdentityError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -826,10 +846,9 @@ impl IdentityProvider for SqliteIdentityProvider {
                 .await?
                 .is_some()
             {
-                let existing =
-                    Self::get_member_row(&tx, group.id, *member_type, member_value)
-                        .await?
-                        .unwrap();
+                let existing = Self::get_member_row(&tx, group.id, *member_type, member_value)
+                    .await?
+                    .unwrap();
                 result.push(existing);
                 continue;
             }
@@ -837,10 +856,7 @@ impl IdentityProvider for SqliteIdentityProvider {
             let q = Query::table("GroupMember")
                 .create()
                 .set("groupId", Value::Int(group.id as i64))
-                .set(
-                    "memberType",
-                    Value::Text(member_type.as_str().to_string()),
-                )
+                .set("memberType", Value::Text(member_type.as_str().to_string()))
                 .set("memberValue", Value::Text(member_value.clone()))
                 .set("role", Value::Text(role.as_str().to_string()))
                 .set("addedBy", Value::Text(added_by.to_string()))

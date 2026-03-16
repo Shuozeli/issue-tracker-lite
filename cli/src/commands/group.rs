@@ -123,7 +123,10 @@ fn parse_role(s: &str) -> Result<i32> {
         "member" => Ok(MemberRole::Member as i32),
         "manager" => Ok(MemberRole::Manager as i32),
         "owner" => Ok(MemberRole::Owner as i32),
-        _ => bail!("Invalid role '{}'. Must be 'member', 'manager', or 'owner'.", s),
+        _ => bail!(
+            "Invalid role '{}'. Must be 'member', 'manager', or 'owner'.",
+            s
+        ),
     }
 }
 
@@ -196,13 +199,7 @@ fn print_member(m: &crate::identity_proto::GroupMember) {
 
 fn print_members(members: &[crate::identity_proto::GroupMember]) {
     let mut table = Table::new();
-    table.set_header(vec![
-        "Group",
-        "Type",
-        "Value",
-        "Role",
-        "Added By",
-    ]);
+    table.set_header(vec!["Group", "Type", "Value", "Role", "Added By"]);
     for m in members {
         table.add_row(vec![
             &m.group_name,
@@ -245,11 +242,14 @@ pub async fn handle(cmd: GroupCommand, server: &str, user: Option<&str>) -> Resu
             display_name,
             description,
         } => {
-            let response = call!(create_group, CreateGroupRequest {
-                name,
-                display_name,
-                description,
-            })?;
+            let response = call!(
+                create_group,
+                CreateGroupRequest {
+                    name,
+                    display_name,
+                    description,
+                }
+            )?;
             print_group(&response.into_inner());
         }
         GroupCommand::Get { name } => {
@@ -260,10 +260,13 @@ pub async fn handle(cmd: GroupCommand, server: &str, user: Option<&str>) -> Resu
             page_size,
             page_token,
         } => {
-            let response = call!(list_groups, ListGroupsRequest {
-                page_size,
-                page_token,
-            })?;
+            let response = call!(
+                list_groups,
+                ListGroupsRequest {
+                    page_size,
+                    page_token,
+                }
+            )?;
             let resp = response.into_inner();
             print_groups(&resp.groups);
             if !resp.next_page_token.is_empty() {
@@ -275,11 +278,14 @@ pub async fn handle(cmd: GroupCommand, server: &str, user: Option<&str>) -> Resu
             display_name,
             description,
         } => {
-            let response = call!(update_group, UpdateGroupRequest {
-                name,
-                display_name,
-                description,
-            })?;
+            let response = call!(
+                update_group,
+                UpdateGroupRequest {
+                    name,
+                    display_name,
+                    description,
+                }
+            )?;
             print_group(&response.into_inner());
         }
         GroupCommand::Delete { name } => {
@@ -294,12 +300,15 @@ pub async fn handle(cmd: GroupCommand, server: &str, user: Option<&str>) -> Resu
         } => {
             let mt = parse_member_type(&member_type)?;
             let r = parse_role(&role)?;
-            let response = call!(add_member, AddMemberRequest {
-                group_name,
-                member_type: mt,
-                member_value,
-                role: r,
-            })?;
+            let response = call!(
+                add_member,
+                AddMemberRequest {
+                    group_name,
+                    member_type: mt,
+                    member_value,
+                    role: r,
+                }
+            )?;
             print_member(&response.into_inner());
         }
         GroupCommand::RemoveMember {
@@ -308,11 +317,14 @@ pub async fn handle(cmd: GroupCommand, server: &str, user: Option<&str>) -> Resu
             member_value,
         } => {
             let mt = parse_member_type(&member_type)?;
-            call!(remove_member, RemoveMemberRequest {
-                group_name: group_name.clone(),
-                member_type: mt,
-                member_value: member_value.clone(),
-            })?;
+            call!(
+                remove_member,
+                RemoveMemberRequest {
+                    group_name: group_name.clone(),
+                    member_type: mt,
+                    member_value: member_value.clone(),
+                }
+            )?;
             println!(
                 "Removed {} '{}' from group '{}'.",
                 member_type, member_value, group_name
@@ -330,12 +342,15 @@ pub async fn handle(cmd: GroupCommand, server: &str, user: Option<&str>) -> Resu
         } => {
             let mt = parse_member_type(&member_type)?;
             let r = parse_role(&role)?;
-            let response = call!(update_member_role, UpdateMemberRoleRequest {
-                group_name,
-                member_type: mt,
-                member_value,
-                role: r,
-            })?;
+            let response = call!(
+                update_member_role,
+                UpdateMemberRoleRequest {
+                    group_name,
+                    member_type: mt,
+                    member_value,
+                    role: r,
+                }
+            )?;
             print_member(&response.into_inner());
         }
         GroupCommand::ResolveGroups { user_id } => {
@@ -356,10 +371,13 @@ pub async fn handle(cmd: GroupCommand, server: &str, user: Option<&str>) -> Resu
             user_id,
             group_name,
         } => {
-            let response = call!(is_member, IsMemberRequest {
-                user_id: user_id.clone(),
-                group_name: group_name.clone(),
-            })?;
+            let response = call!(
+                is_member,
+                IsMemberRequest {
+                    user_id: user_id.clone(),
+                    group_name: group_name.clone(),
+                }
+            )?;
             let is_member = response.into_inner().is_member;
             if is_member {
                 println!("User '{}' IS a member of group '{}'.", user_id, group_name);

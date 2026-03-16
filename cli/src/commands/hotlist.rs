@@ -114,11 +114,14 @@ pub async fn handle(cmd: HotlistCommand, server: &str, user: Option<&str>) -> Re
             description,
             owner,
         } => {
-            let response = call!(create_hotlist, CreateHotlistRequest {
-                name,
-                description,
-                owner,
-            })?;
+            let response = call!(
+                create_hotlist,
+                CreateHotlistRequest {
+                    name,
+                    description,
+                    owner,
+                }
+            )?;
             output::print_hotlist(&response.into_inner());
         }
         HotlistCommand::Get { id } => {
@@ -130,11 +133,14 @@ pub async fn handle(cmd: HotlistCommand, server: &str, user: Option<&str>) -> Re
             page_size,
             page_token,
         } => {
-            let response = call!(list_hotlists, ListHotlistsRequest {
-                filter,
-                page_size,
-                page_token,
-            })?;
+            let response = call!(
+                list_hotlists,
+                ListHotlistsRequest {
+                    filter,
+                    page_size,
+                    page_token,
+                }
+            )?;
             let resp = response.into_inner();
             output::print_hotlists(&resp.hotlists);
             if !resp.next_page_token.is_empty() {
@@ -147,12 +153,15 @@ pub async fn handle(cmd: HotlistCommand, server: &str, user: Option<&str>) -> Re
             description,
             archived,
         } => {
-            let response = call!(update_hotlist, UpdateHotlistRequest {
-                hotlist_id: id,
-                name,
-                description,
-                archived,
-            })?;
+            let response = call!(
+                update_hotlist,
+                UpdateHotlistRequest {
+                    hotlist_id: id,
+                    name,
+                    description,
+                    archived,
+                }
+            )?;
             output::print_hotlist(&response.into_inner());
         }
         HotlistCommand::AddIssue {
@@ -160,11 +169,14 @@ pub async fn handle(cmd: HotlistCommand, server: &str, user: Option<&str>) -> Re
             issue_id,
             by,
         } => {
-            let response = call!(add_issue, AddIssueToHotlistRequest {
-                hotlist_id,
-                issue_id,
-                added_by: by,
-            })?;
+            let response = call!(
+                add_issue,
+                AddIssueToHotlistRequest {
+                    hotlist_id,
+                    issue_id,
+                    added_by: by,
+                }
+            )?;
             let hi = response.into_inner();
             println!(
                 "Issue {} added to hotlist {} at position {}",
@@ -175,10 +187,13 @@ pub async fn handle(cmd: HotlistCommand, server: &str, user: Option<&str>) -> Re
             hotlist_id,
             issue_id,
         } => {
-            call!(remove_issue, RemoveIssueFromHotlistRequest {
-                hotlist_id,
-                issue_id,
-            })?;
+            call!(
+                remove_issue,
+                RemoveIssueFromHotlistRequest {
+                    hotlist_id,
+                    issue_id,
+                }
+            )?;
             println!("Issue {} removed from hotlist {}", issue_id, hotlist_id);
         }
         HotlistCommand::Issues { id } => {
@@ -186,14 +201,14 @@ pub async fn handle(cmd: HotlistCommand, server: &str, user: Option<&str>) -> Re
             let resp = response.into_inner();
             output::print_hotlist_issues(&resp.issues);
         }
-        HotlistCommand::Reorder {
-            hotlist_id,
-            order,
-        } => {
-            call!(reorder_issues, ReorderHotlistIssuesRequest {
-                hotlist_id,
-                issue_ids: order,
-            })?;
+        HotlistCommand::Reorder { hotlist_id, order } => {
+            call!(
+                reorder_issues,
+                ReorderHotlistIssuesRequest {
+                    hotlist_id,
+                    issue_ids: order,
+                }
+            )?;
             println!("Issues reordered in hotlist {}", hotlist_id);
         }
     }

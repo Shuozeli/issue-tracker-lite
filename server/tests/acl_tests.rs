@@ -1,9 +1,9 @@
+#[allow(dead_code, unused_imports)]
 mod common;
 use common::*;
 
 use issuetracker_server::proto::component_service_client::ComponentServiceClient;
 use issuetracker_server::proto::hotlist_service_client::HotlistServiceClient;
-use issuetracker_server::proto::issue_service_client::IssueServiceClient;
 use issuetracker_server::proto::search_service_client::SearchServiceClient;
 
 // ── ACL Service Tests ──────────────────────────────────────────────────────
@@ -47,7 +47,10 @@ async fn test_set_and_get_component_acl() {
 
     // 2 entries: admin@test.com (from create_component helper) + alice@test.com
     assert_eq!(resp.entries.len(), 2);
-    assert!(resp.entries.iter().any(|e| e.identity_value == "alice@test.com"));
+    assert!(resp
+        .entries
+        .iter()
+        .any(|e| e.identity_value == "alice@test.com"));
 }
 
 #[tokio::test]
@@ -248,10 +251,18 @@ async fn test_check_component_permission_acl_match() {
     assert_eq!(resp.grant_source, "ACL");
     // ADMIN_ISSUES implies EDIT_ISSUES, COMMENT_ON_ISSUES, VIEW_ISSUES
     assert!(resp.permissions.len() >= 4);
-    assert!(resp.permissions.contains(&(ComponentPermission::AdminIssues as i32)));
-    assert!(resp.permissions.contains(&(ComponentPermission::EditIssues as i32)));
-    assert!(resp.permissions.contains(&(ComponentPermission::CommentOnIssues as i32)));
-    assert!(resp.permissions.contains(&(ComponentPermission::ViewIssues as i32)));
+    assert!(resp
+        .permissions
+        .contains(&(ComponentPermission::AdminIssues as i32)));
+    assert!(resp
+        .permissions
+        .contains(&(ComponentPermission::EditIssues as i32)));
+    assert!(resp
+        .permissions
+        .contains(&(ComponentPermission::CommentOnIssues as i32)));
+    assert!(resp
+        .permissions
+        .contains(&(ComponentPermission::ViewIssues as i32)));
 }
 
 #[tokio::test]
@@ -284,7 +295,9 @@ async fn test_check_component_permission_public_acl() {
         .into_inner();
 
     assert_eq!(resp.grant_source, "ACL");
-    assert!(resp.permissions.contains(&(ComponentPermission::ViewIssues as i32)));
+    assert!(resp
+        .permissions
+        .contains(&(ComponentPermission::ViewIssues as i32)));
 }
 
 #[tokio::test]
@@ -356,9 +369,15 @@ async fn test_check_component_permission_expanded_access() {
 
     assert_eq!(resp.grant_source, "EXPANDED_ACCESS");
     // Assignee gets EDIT_ISSUES (which implies COMMENT_ON_ISSUES and VIEW_ISSUES)
-    assert!(resp.permissions.contains(&(ComponentPermission::EditIssues as i32)));
-    assert!(resp.permissions.contains(&(ComponentPermission::CommentOnIssues as i32)));
-    assert!(resp.permissions.contains(&(ComponentPermission::ViewIssues as i32)));
+    assert!(resp
+        .permissions
+        .contains(&(ComponentPermission::EditIssues as i32)));
+    assert!(resp
+        .permissions
+        .contains(&(ComponentPermission::CommentOnIssues as i32)));
+    assert!(resp
+        .permissions
+        .contains(&(ComponentPermission::ViewIssues as i32)));
 }
 
 #[tokio::test]
@@ -403,8 +422,12 @@ async fn test_check_component_permission_expanded_access_reporter() {
         .into_inner();
 
     assert_eq!(resp.grant_source, "EXPANDED_ACCESS");
-    assert!(resp.permissions.contains(&(ComponentPermission::CommentOnIssues as i32)));
-    assert!(resp.permissions.contains(&(ComponentPermission::ViewIssues as i32)));
+    assert!(resp
+        .permissions
+        .contains(&(ComponentPermission::CommentOnIssues as i32)));
+    assert!(resp
+        .permissions
+        .contains(&(ComponentPermission::ViewIssues as i32)));
 }
 
 #[tokio::test]
@@ -484,7 +507,10 @@ async fn test_set_and_get_hotlist_acl() {
         .into_inner();
 
     assert_eq!(entry.hotlist_id, hl.hotlist_id);
-    assert_eq!(entry.permission, HotlistPermission::HotlistViewAppend as i32);
+    assert_eq!(
+        entry.permission,
+        HotlistPermission::HotlistViewAppend as i32
+    );
 
     let resp = acl
         .get_hotlist_acl(GetHotlistAclRequest {
@@ -652,7 +678,9 @@ async fn test_check_component_permission_acl_takes_priority_over_expanded() {
         .into_inner();
 
     assert_eq!(resp.grant_source, "ACL");
-    assert!(resp.permissions.contains(&(ComponentPermission::AdminComponents as i32)));
+    assert!(resp
+        .permissions
+        .contains(&(ComponentPermission::AdminComponents as i32)));
 }
 
 // ── Permission Enforcement Tests ───────────────────────────────────────────
@@ -668,9 +696,12 @@ async fn test_permission_denied_get_component() {
 
     // Get with authenticated user who has no ACL -> PERMISSION_DENIED
     let err = comp
-        .get_component(with_user("nobody@test.com", GetComponentRequest {
-            component_id: comp_id,
-        }))
+        .get_component(with_user(
+            "nobody@test.com",
+            GetComponentRequest {
+                component_id: comp_id,
+            },
+        ))
         .await
         .unwrap_err();
 
@@ -697,9 +728,12 @@ async fn test_permission_allowed_get_component_with_acl() {
 
     // alice can get the component
     let resp = comp
-        .get_component(with_user("alice@test.com", GetComponentRequest {
-            component_id: comp_id,
-        }))
+        .get_component(with_user(
+            "alice@test.com",
+            GetComponentRequest {
+                component_id: comp_id,
+            },
+        ))
         .await
         .unwrap()
         .into_inner();
@@ -718,13 +752,16 @@ async fn test_permission_denied_create_issue() {
 
     // Try to create issue with auth header but no CREATE_ISSUES permission
     let err = issue
-        .create_issue(with_user("nobody@test.com", CreateIssueRequest {
-            component_id: comp_id,
-            title: "Unauthorized Issue".to_string(),
-            priority: Priority::P2 as i32,
-            r#type: IssueType::Bug as i32,
-            ..Default::default()
-        }))
+        .create_issue(with_user(
+            "nobody@test.com",
+            CreateIssueRequest {
+                component_id: comp_id,
+                title: "Unauthorized Issue".to_string(),
+                priority: Priority::P2 as i32,
+                r#type: IssueType::Bug as i32,
+                ..Default::default()
+            },
+        ))
         .await
         .unwrap_err();
 
@@ -752,13 +789,16 @@ async fn test_permission_allowed_create_issue_with_acl() {
 
     // bob can create an issue
     let resp = issue
-        .create_issue(with_user("bob@test.com", CreateIssueRequest {
-            component_id: comp_id,
-            title: "Authorized Issue".to_string(),
-            priority: Priority::P2 as i32,
-            r#type: IssueType::Bug as i32,
-            ..Default::default()
-        }))
+        .create_issue(with_user(
+            "bob@test.com",
+            CreateIssueRequest {
+                component_id: comp_id,
+                title: "Authorized Issue".to_string(),
+                priority: Priority::P2 as i32,
+                r#type: IssueType::Bug as i32,
+                ..Default::default()
+            },
+        ))
         .await
         .unwrap()
         .into_inner();
@@ -790,11 +830,14 @@ async fn test_permission_denied_update_issue() {
 
     // Try to update with auth but no EDIT_ISSUES permission
     let err = issue
-        .update_issue(with_user("nobody@test.com", UpdateIssueRequest {
-            issue_id: created.issue_id,
-            title: Some("Hacked".to_string()),
-            ..Default::default()
-        }))
+        .update_issue(with_user(
+            "nobody@test.com",
+            UpdateIssueRequest {
+                issue_id: created.issue_id,
+                title: Some("Hacked".to_string()),
+                ..Default::default()
+            },
+        ))
         .await
         .unwrap_err();
 
@@ -828,11 +871,14 @@ async fn test_permission_expanded_access_allows_edit() {
 
     // Assignee can update via expanded access
     let resp = issue
-        .update_issue(with_user("dev@test.com", UpdateIssueRequest {
-            issue_id: created.issue_id,
-            title: Some("Updated by assignee".to_string()),
-            ..Default::default()
-        }))
+        .update_issue(with_user(
+            "dev@test.com",
+            UpdateIssueRequest {
+                issue_id: created.issue_id,
+                title: Some("Updated by assignee".to_string()),
+                ..Default::default()
+            },
+        ))
         .await
         .unwrap()
         .into_inner();
@@ -852,7 +898,9 @@ async fn test_permission_no_header_denies_access() {
 
     // Without x-user-id header, permission-checked operations are denied
     let err = unauthed_comp
-        .get_component(GetComponentRequest { component_id: comp_id })
+        .get_component(GetComponentRequest {
+            component_id: comp_id,
+        })
         .await
         .unwrap_err();
 
@@ -876,9 +924,12 @@ async fn test_permission_denied_hotlist_get() {
 
     // Authenticated user with no ACL -> denied
     let err = hotlist
-        .get_hotlist(with_user("nobody@test.com", GetHotlistRequest {
-            hotlist_id: hl.hotlist_id,
-        }))
+        .get_hotlist(with_user(
+            "nobody@test.com",
+            GetHotlistRequest {
+                hotlist_id: hl.hotlist_id,
+            },
+        ))
         .await
         .unwrap_err();
 
@@ -913,9 +964,12 @@ async fn test_permission_allowed_hotlist_with_acl() {
 
     // viewer can get the hotlist
     let resp = hotlist
-        .get_hotlist(with_user("viewer@test.com", GetHotlistRequest {
-            hotlist_id: hl.hotlist_id,
-        }))
+        .get_hotlist(with_user(
+            "viewer@test.com",
+            GetHotlistRequest {
+                hotlist_id: hl.hotlist_id,
+            },
+        ))
         .await
         .unwrap()
         .into_inner();
@@ -938,40 +992,72 @@ async fn test_list_components_filters_by_permission() {
 
     // Grant alice VIEW on c1 and c3 only
     acl.set_component_acl(SetComponentAclRequest {
-        component_id: c1, identity_type: 1, identity_value: "alice@test.com".to_string(),
+        component_id: c1,
+        identity_type: 1,
+        identity_value: "alice@test.com".to_string(),
         permissions: vec![1], // VIEW_ISSUES
-    }).await.unwrap();
+    })
+    .await
+    .unwrap();
     acl.set_component_acl(SetComponentAclRequest {
-        component_id: c3, identity_type: 1, identity_value: "alice@test.com".to_string(),
+        component_id: c3,
+        identity_type: 1,
+        identity_value: "alice@test.com".to_string(),
         permissions: vec![1],
-    }).await.unwrap();
+    })
+    .await
+    .unwrap();
 
     // Admin sees all 3
-    let admin_list = comp.list_components(ListComponentsRequest {
-        parent_id: None, page_size: 10, page_token: String::new(),
-    }).await.unwrap().into_inner();
+    let admin_list = comp
+        .list_components(ListComponentsRequest {
+            parent_id: None,
+            page_size: 10,
+            page_token: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
     assert_eq!(admin_list.components.len(), 3);
 
     // Alice sees only 2
     let mut alice_comp = ComponentServiceClient::with_interceptor(
-        f.channel.clone(), UserInterceptor("alice@test.com".to_string()),
+        f.channel.clone(),
+        UserInterceptor("alice@test.com".to_string()),
     );
-    let alice_list = alice_comp.list_components(ListComponentsRequest {
-        parent_id: None, page_size: 10, page_token: String::new(),
-    }).await.unwrap().into_inner();
+    let alice_list = alice_comp
+        .list_components(ListComponentsRequest {
+            parent_id: None,
+            page_size: 10,
+            page_token: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
     assert_eq!(alice_list.components.len(), 2);
-    let names: Vec<&str> = alice_list.components.iter().map(|c| c.name.as_str()).collect();
+    let names: Vec<&str> = alice_list
+        .components
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
     assert!(names.contains(&"visible-comp"));
     assert!(names.contains(&"also-visible"));
     assert!(!names.contains(&"hidden-comp"));
 
     // Outsider sees none
     let mut outsider = ComponentServiceClient::with_interceptor(
-        f.channel.clone(), UserInterceptor("outsider@test.com".to_string()),
+        f.channel.clone(),
+        UserInterceptor("outsider@test.com".to_string()),
     );
-    let outsider_list = outsider.list_components(ListComponentsRequest {
-        parent_id: None, page_size: 10, page_token: String::new(),
-    }).await.unwrap().into_inner();
+    let outsider_list = outsider
+        .list_components(ListComponentsRequest {
+            parent_id: None,
+            page_size: 10,
+            page_token: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
     assert_eq!(outsider_list.components.len(), 0);
 }
 
@@ -982,47 +1068,81 @@ async fn test_list_hotlists_filters_by_permission() {
     let mut acl = f.acl_client();
 
     // Create 2 hotlists
-    let h1 = hotlist.create_hotlist(CreateHotlistRequest {
-        name: "Visible HL".to_string(), description: String::new(),
-        owner: TEST_ADMIN_USER.to_string(),
-    }).await.unwrap().into_inner();
-    let h2 = hotlist.create_hotlist(CreateHotlistRequest {
-        name: "Hidden HL".to_string(), description: String::new(),
-        owner: TEST_ADMIN_USER.to_string(),
-    }).await.unwrap().into_inner();
+    let h1 = hotlist
+        .create_hotlist(CreateHotlistRequest {
+            name: "Visible HL".to_string(),
+            description: String::new(),
+            owner: TEST_ADMIN_USER.to_string(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+    let h2 = hotlist
+        .create_hotlist(CreateHotlistRequest {
+            name: "Hidden HL".to_string(),
+            description: String::new(),
+            owner: TEST_ADMIN_USER.to_string(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
 
     grant_hotlist_admin(&mut acl, h1.hotlist_id).await;
     grant_hotlist_admin(&mut acl, h2.hotlist_id).await;
 
     // Grant alice VIEW on h1 only
     acl.set_hotlist_acl(SetHotlistAclRequest {
-        hotlist_id: h1.hotlist_id, identity_type: 1,
-        identity_value: "alice@test.com".to_string(), permission: 1,
-    }).await.unwrap();
+        hotlist_id: h1.hotlist_id,
+        identity_type: 1,
+        identity_value: "alice@test.com".to_string(),
+        permission: 1,
+    })
+    .await
+    .unwrap();
 
     // Admin sees both
-    let admin_list = hotlist.list_hotlists(ListHotlistsRequest {
-        page_size: 10, page_token: String::new(), filter: String::new(),
-    }).await.unwrap().into_inner();
+    let admin_list = hotlist
+        .list_hotlists(ListHotlistsRequest {
+            page_size: 10,
+            page_token: String::new(),
+            filter: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
     assert_eq!(admin_list.hotlists.len(), 2);
 
     // Alice sees only 1
     let mut alice = HotlistServiceClient::with_interceptor(
-        f.channel.clone(), UserInterceptor("alice@test.com".to_string()),
+        f.channel.clone(),
+        UserInterceptor("alice@test.com".to_string()),
     );
-    let alice_list = alice.list_hotlists(ListHotlistsRequest {
-        page_size: 10, page_token: String::new(), filter: String::new(),
-    }).await.unwrap().into_inner();
+    let alice_list = alice
+        .list_hotlists(ListHotlistsRequest {
+            page_size: 10,
+            page_token: String::new(),
+            filter: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
     assert_eq!(alice_list.hotlists.len(), 1);
     assert_eq!(alice_list.hotlists[0].name, "Visible HL");
 
     // Outsider sees none
     let mut outsider = HotlistServiceClient::with_interceptor(
-        f.channel.clone(), UserInterceptor("outsider@test.com".to_string()),
+        f.channel.clone(),
+        UserInterceptor("outsider@test.com".to_string()),
     );
-    let outsider_list = outsider.list_hotlists(ListHotlistsRequest {
-        page_size: 10, page_token: String::new(), filter: String::new(),
-    }).await.unwrap().into_inner();
+    let outsider_list = outsider
+        .list_hotlists(ListHotlistsRequest {
+            page_size: 10,
+            page_token: String::new(),
+            filter: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
     assert_eq!(outsider_list.hotlists.len(), 0);
 }
 
@@ -1043,37 +1163,58 @@ async fn test_search_filters_by_permission() {
 
     // Grant alice VIEW on c1 only
     acl.set_component_acl(SetComponentAclRequest {
-        component_id: c1, identity_type: 1, identity_value: "alice@test.com".to_string(),
+        component_id: c1,
+        identity_type: 1,
+        identity_value: "alice@test.com".to_string(),
         permissions: vec![1],
-    }).await.unwrap();
+    })
+    .await
+    .unwrap();
 
     // Admin search returns both
     let mut admin_search = f.search_client();
-    let admin_results = admin_search.search_issues(SearchIssuesRequest {
-        query: "Bug".to_string(), page_size: 10,
-        ..Default::default()
-    }).await.unwrap().into_inner();
+    let admin_results = admin_search
+        .search_issues(SearchIssuesRequest {
+            query: "Bug".to_string(),
+            page_size: 10,
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .into_inner();
     assert_eq!(admin_results.issues.len(), 2);
 
     // Alice search returns only the visible one
     let mut alice_search = SearchServiceClient::with_interceptor(
-        f.channel.clone(), UserInterceptor("alice@test.com".to_string()),
+        f.channel.clone(),
+        UserInterceptor("alice@test.com".to_string()),
     );
-    let alice_results = alice_search.search_issues(SearchIssuesRequest {
-        query: "Bug".to_string(), page_size: 10,
-        ..Default::default()
-    }).await.unwrap().into_inner();
+    let alice_results = alice_search
+        .search_issues(SearchIssuesRequest {
+            query: "Bug".to_string(),
+            page_size: 10,
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .into_inner();
     assert_eq!(alice_results.issues.len(), 1);
     assert_eq!(alice_results.issues[0].title, "Visible Bug");
 
     // Outsider search returns nothing
     let mut outsider = SearchServiceClient::with_interceptor(
-        f.channel.clone(), UserInterceptor("outsider@test.com".to_string()),
+        f.channel.clone(),
+        UserInterceptor("outsider@test.com".to_string()),
     );
-    let outsider_results = outsider.search_issues(SearchIssuesRequest {
-        query: "Bug".to_string(), page_size: 10,
-        ..Default::default()
-    }).await.unwrap().into_inner();
+    let outsider_results = outsider
+        .search_issues(SearchIssuesRequest {
+            query: "Bug".to_string(),
+            page_size: 10,
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .into_inner();
     assert_eq!(outsider_results.issues.len(), 0);
 }
 
@@ -1087,8 +1228,14 @@ async fn test_unauthenticated_list_returns_empty() {
 
     // Unauthenticated user sees nothing
     let mut unauth = f.unauthenticated_component_client();
-    let list = unauth.list_components(ListComponentsRequest {
-        parent_id: None, page_size: 10, page_token: String::new(),
-    }).await.unwrap().into_inner();
+    let list = unauth
+        .list_components(ListComponentsRequest {
+            parent_id: None,
+            page_size: 10,
+            page_token: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
     assert_eq!(list.components.len(), 0);
 }

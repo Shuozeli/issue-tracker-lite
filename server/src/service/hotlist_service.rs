@@ -115,12 +115,13 @@ impl HotlistService for HotlistServiceImpl {
         let req = request.into_inner();
 
         if req.name.trim().is_empty() {
-            return Err(
-                DomainError::InvalidArgument("name must not be empty".to_string()).into(),
-            );
+            return Err(DomainError::InvalidArgument("name must not be empty".to_string()).into());
         }
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -171,11 +172,18 @@ impl HotlistService for HotlistServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -214,7 +222,11 @@ impl HotlistService for HotlistServiceImpl {
         };
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
@@ -231,20 +243,22 @@ impl HotlistService for HotlistServiceImpl {
             }
         }
 
-        q = q
-            .order_by("id", Order::Desc)
-            .limit((page_size + 1) as u64);
+        q = q.order_by("id", Order::Desc).limit((page_size + 1) as u64);
 
         if !req.page_token.is_empty() {
-            let cursor_id = req.page_token.parse::<i64>().map_err(|_| {
-                DomainError::InvalidArgument("invalid page_token".to_string())
-            })?;
+            let cursor_id = req
+                .page_token
+                .parse::<i64>()
+                .map_err(|_| DomainError::InvalidArgument("invalid page_token".to_string()))?;
             q = q.filter(Filter::lt("id", Value::Int(cursor_id)));
         }
 
         let stmt = q.build();
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -321,11 +335,18 @@ impl HotlistService for HotlistServiceImpl {
         }
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -346,7 +367,7 @@ impl HotlistService for HotlistServiceImpl {
 
         let mut update_q = Query::table("Hotlist")
             .update()
-            .filter(Filter::eq("id", Value::Int(req.hotlist_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.hotlist_id)))
             .set("modifiedAt", Value::Text(chrono::Utc::now().to_rfc3339()));
 
         if let Some(name) = req.name {
@@ -383,11 +404,18 @@ impl HotlistService for HotlistServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -409,24 +437,22 @@ impl HotlistService for HotlistServiceImpl {
         // Validate issue exists
         let issue_stmt = Query::table("Issue")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(req.issue_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.issue_id)))
             .build();
         let issue_row = tx
             .query_optional(&issue_stmt)
             .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         if issue_row.is_none() {
-            return Err(
-                DomainError::NotFound(format!("issue {} not found", req.issue_id)).into(),
-            );
+            return Err(DomainError::NotFound(format!("issue {} not found", req.issue_id)).into());
         }
 
         // Check for duplicate membership
         let existing_stmt = Query::table("HotlistIssue")
             .find_first()
             .filter(Filter::and(vec![
-                Filter::eq("hotlistId", Value::Int(req.hotlist_id as i64)),
-                Filter::eq("issueId", Value::Int(req.issue_id as i64)),
+                Filter::eq("hotlistId", Value::Int(req.hotlist_id)),
+                Filter::eq("issueId", Value::Int(req.issue_id)),
             ]))
             .build();
         let existing_row = tx
@@ -444,7 +470,7 @@ impl HotlistService for HotlistServiceImpl {
         // Get max position
         let max_pos_stmt = Query::table("HotlistIssue")
             .find_many()
-            .filter(Filter::eq("hotlistId", Value::Int(req.hotlist_id as i64)))
+            .filter(Filter::eq("hotlistId", Value::Int(req.hotlist_id)))
             .order_by("position", Order::Desc)
             .limit(1)
             .build();
@@ -462,8 +488,8 @@ impl HotlistService for HotlistServiceImpl {
         let now = Value::Text(chrono::Utc::now().to_rfc3339());
         let create_stmt = Query::table("HotlistIssue")
             .create()
-            .set("hotlistId", Value::Int(req.hotlist_id as i64))
-            .set("issueId", Value::Int(req.issue_id as i64))
+            .set("hotlistId", Value::Int(req.hotlist_id))
+            .set("issueId", Value::Int(req.issue_id))
             .set("position", Value::Int(next_position as i64))
             .set("addedBy", Value::Text(req.added_by))
             .set("addedAt", now)
@@ -502,11 +528,18 @@ impl HotlistService for HotlistServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -526,8 +559,8 @@ impl HotlistService for HotlistServiceImpl {
         let find_stmt = Query::table("HotlistIssue")
             .find_first()
             .filter(Filter::and(vec![
-                Filter::eq("hotlistId", Value::Int(req.hotlist_id as i64)),
-                Filter::eq("issueId", Value::Int(req.issue_id as i64)),
+                Filter::eq("hotlistId", Value::Int(req.hotlist_id)),
+                Filter::eq("issueId", Value::Int(req.issue_id)),
             ]))
             .build();
         let find_row = tx
@@ -574,11 +607,18 @@ impl HotlistService for HotlistServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -599,7 +639,7 @@ impl HotlistService for HotlistServiceImpl {
 
         let stmt = Query::table("HotlistIssue")
             .find_many()
-            .filter(Filter::eq("hotlistId", Value::Int(req.hotlist_id as i64)))
+            .filter(Filter::eq("hotlistId", Value::Int(req.hotlist_id)))
             .order_by("position", Order::Asc)
             .build();
         let rows = tx
@@ -629,11 +669,18 @@ impl HotlistService for HotlistServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -655,7 +702,7 @@ impl HotlistService for HotlistServiceImpl {
         // Get all current memberships
         let all_stmt = Query::table("HotlistIssue")
             .find_many()
-            .filter(Filter::eq("hotlistId", Value::Int(req.hotlist_id as i64)))
+            .filter(Filter::eq("hotlistId", Value::Int(req.hotlist_id)))
             .build();
         let all_rows = tx
             .query(&all_stmt)

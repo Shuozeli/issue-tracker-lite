@@ -12,7 +12,7 @@ pub const MAX_NESTING_DEPTH: usize = 3;
 pub fn validate_group_name(name: &str) -> Result<(), IdentityError> {
     let len = name.len();
 
-    if len < 3 || len > 64 {
+    if !(3..=64).contains(&len) {
         return Err(IdentityError::InvalidArgument(
             "group name must be 3-64 characters".to_string(),
         ));

@@ -4,9 +4,9 @@ use clap::Subcommand;
 use crate::output;
 use crate::proto::issue_service_client::IssueServiceClient;
 use crate::proto::{
-    AddBlockingRequest, AddParentRequest, CreateIssueRequest, GetIssueRequest,
-    ListIssuesRequest, ListRelatedIssuesRequest, MarkDuplicateRequest, RemoveBlockingRequest,
-    RemoveParentRequest, UnmarkDuplicateRequest, UpdateIssueRequest,
+    AddBlockingRequest, AddParentRequest, CreateIssueRequest, GetIssueRequest, ListIssuesRequest,
+    ListRelatedIssuesRequest, MarkDuplicateRequest, RemoveBlockingRequest, RemoveParentRequest,
+    UnmarkDuplicateRequest, UpdateIssueRequest,
 };
 
 #[derive(Subcommand)]
@@ -232,19 +232,22 @@ pub async fn handle(cmd: IssueCommand, server: &str, user: Option<&str>) -> Resu
             assignee,
             reporter,
         } => {
-            let response = call!(create_issue, CreateIssueRequest {
-                component_id: component,
-                title,
-                description,
-                priority: parse_priority(&priority),
-                r#type: parse_issue_type(&r#type),
-                severity: severity.map(|s| parse_severity(&s)),
-                assignee,
-                reporter,
-                verifier: None,
-                found_in: None,
-                targeted_to: None,
-            })?;
+            let response = call!(
+                create_issue,
+                CreateIssueRequest {
+                    component_id: component,
+                    title,
+                    description,
+                    priority: parse_priority(&priority),
+                    r#type: parse_issue_type(&r#type),
+                    severity: severity.map(|s| parse_severity(&s)),
+                    assignee,
+                    reporter,
+                    verifier: None,
+                    found_in: None,
+                    targeted_to: None,
+                }
+            )?;
             output::print_issue(&response.into_inner());
         }
         IssueCommand::Get { id } => {
@@ -257,12 +260,15 @@ pub async fn handle(cmd: IssueCommand, server: &str, user: Option<&str>) -> Resu
             page_size,
             page_token,
         } => {
-            let response = call!(list_issues, ListIssuesRequest {
-                component_id: component,
-                status_filter: status,
-                page_size,
-                page_token,
-            })?;
+            let response = call!(
+                list_issues,
+                ListIssuesRequest {
+                    component_id: component,
+                    status_filter: status,
+                    page_size,
+                    page_token,
+                }
+            )?;
             let resp = response.into_inner();
             output::print_issues(&resp.issues);
             if !resp.next_page_token.is_empty() {
@@ -280,49 +286,55 @@ pub async fn handle(cmd: IssueCommand, server: &str, user: Option<&str>) -> Resu
             assignee,
             component,
         } => {
-            let response = call!(update_issue, UpdateIssueRequest {
-                issue_id: id,
-                title,
-                description,
-                status: status.map(|s| parse_status(&s)),
-                priority: priority.map(|p| parse_priority(&p)),
-                severity: severity.map(|s| parse_severity(&s)),
-                r#type: r#type.map(|t| parse_issue_type(&t)),
-                component_id: component,
-                assignee,
-                reporter: None,
-                verifier: None,
-                found_in: None,
-                targeted_to: None,
-                verified_in: None,
-                in_prod: None,
-                archived: None,
-                update_mask: None,
-            })?;
+            let response = call!(
+                update_issue,
+                UpdateIssueRequest {
+                    issue_id: id,
+                    title,
+                    description,
+                    status: status.map(|s| parse_status(&s)),
+                    priority: priority.map(|p| parse_priority(&p)),
+                    severity: severity.map(|s| parse_severity(&s)),
+                    r#type: r#type.map(|t| parse_issue_type(&t)),
+                    component_id: component,
+                    assignee,
+                    reporter: None,
+                    verifier: None,
+                    found_in: None,
+                    targeted_to: None,
+                    verified_in: None,
+                    in_prod: None,
+                    archived: None,
+                    update_mask: None,
+                }
+            )?;
             output::print_issue(&response.into_inner());
         }
         IssueCommand::AddParent {
             child_id,
             parent_id,
         } => {
-            call!(add_parent, AddParentRequest {
-                child_id,
-                parent_id,
-            })?;
+            call!(
+                add_parent,
+                AddParentRequest {
+                    child_id,
+                    parent_id,
+                }
+            )?;
             println!("Parent relationship added: {} -> {}", child_id, parent_id);
         }
         IssueCommand::RemoveParent {
             child_id,
             parent_id,
         } => {
-            call!(remove_parent, RemoveParentRequest {
-                child_id,
-                parent_id,
-            })?;
-            println!(
-                "Parent relationship removed: {} -> {}",
-                child_id, parent_id
-            );
+            call!(
+                remove_parent,
+                RemoveParentRequest {
+                    child_id,
+                    parent_id,
+                }
+            )?;
+            println!("Parent relationship removed: {} -> {}", child_id, parent_id);
         }
         IssueCommand::Parents { id } => {
             let response = call!(list_parents, ListRelatedIssuesRequest { issue_id: id })?;
@@ -346,10 +358,13 @@ pub async fn handle(cmd: IssueCommand, server: &str, user: Option<&str>) -> Resu
             blocking_id,
             blocked_id,
         } => {
-            call!(add_blocking, AddBlockingRequest {
-                blocking_id,
-                blocked_id,
-            })?;
+            call!(
+                add_blocking,
+                AddBlockingRequest {
+                    blocking_id,
+                    blocked_id,
+                }
+            )?;
             println!(
                 "Blocking relationship added: {} blocks {}",
                 blocking_id, blocked_id
@@ -359,20 +374,26 @@ pub async fn handle(cmd: IssueCommand, server: &str, user: Option<&str>) -> Resu
             blocking_id,
             blocked_id,
         } => {
-            call!(remove_blocking, RemoveBlockingRequest {
-                blocking_id,
-                blocked_id,
-            })?;
+            call!(
+                remove_blocking,
+                RemoveBlockingRequest {
+                    blocking_id,
+                    blocked_id,
+                }
+            )?;
             println!(
                 "Blocking relationship removed: {} no longer blocks {}",
                 blocking_id, blocked_id
             );
         }
         IssueCommand::Duplicate { id, of } => {
-            let response = call!(mark_duplicate, MarkDuplicateRequest {
-                issue_id: id,
-                canonical_id: of,
-            })?;
+            let response = call!(
+                mark_duplicate,
+                MarkDuplicateRequest {
+                    issue_id: id,
+                    canonical_id: of,
+                }
+            )?;
             output::print_issue(&response.into_inner());
         }
         IssueCommand::Unduplicate { id } => {

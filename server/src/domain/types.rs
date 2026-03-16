@@ -37,18 +37,12 @@ impl From<DomainError> for tonic::Status {
     fn from(err: DomainError) -> Self {
         match &err {
             DomainError::NotFound(_) => tonic::Status::not_found(err.to_string()),
-            DomainError::InvalidArgument(_) => {
-                tonic::Status::invalid_argument(err.to_string())
-            }
-            DomainError::AlreadyExists(_) => {
-                tonic::Status::already_exists(err.to_string())
-            }
+            DomainError::InvalidArgument(_) => tonic::Status::invalid_argument(err.to_string()),
+            DomainError::AlreadyExists(_) => tonic::Status::already_exists(err.to_string()),
             DomainError::FailedPrecondition(_) => {
                 tonic::Status::failed_precondition(err.to_string())
             }
-            DomainError::PermissionDenied(_) => {
-                tonic::Status::permission_denied(err.to_string())
-            }
+            DomainError::PermissionDenied(_) => tonic::Status::permission_denied(err.to_string()),
             DomainError::Internal(_) => tonic::Status::internal(err.to_string()),
         }
     }

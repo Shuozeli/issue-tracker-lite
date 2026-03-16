@@ -7,10 +7,7 @@ pub struct HealthServiceImpl;
 
 #[tonic::async_trait]
 impl HealthService for HealthServiceImpl {
-    async fn ping(
-        &self,
-        _request: Request<PingRequest>,
-    ) -> Result<Response<PingResponse>, Status> {
+    async fn ping(&self, _request: Request<PingRequest>) -> Result<Response<PingResponse>, Status> {
         Ok(Response::new(PingResponse {
             message: "pong".to_string(),
         }))

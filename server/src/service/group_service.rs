@@ -11,8 +11,8 @@ use crate::identity_proto::{
     DeleteGroupRequest, DeleteGroupResponse, GetGroupRequest, Group as ProtoGroup,
     GroupMember as ProtoGroupMember, IsMemberRequest, IsMemberResponse, ListGroupsRequest,
     ListGroupsResponse, ListMembersRequest, ListMembersResponse, RemoveMemberRequest,
-    RemoveMemberResponse, ResolveUserGroupsRequest, ResolveUserGroupsResponse,
-    UpdateGroupRequest, UpdateMemberRoleRequest,
+    RemoveMemberResponse, ResolveUserGroupsRequest, ResolveUserGroupsResponse, UpdateGroupRequest,
+    UpdateMemberRoleRequest,
 };
 
 pub struct GroupServiceImpl {
@@ -72,24 +72,20 @@ fn member_to_proto(m: &identity::GroupMember, group_name: &str) -> ProtoGroupMem
     }
 }
 
-fn proto_member_type(val: i32) -> Result<MemberType, Status> {
+fn proto_member_type(val: i32) -> Option<MemberType> {
     match val {
-        1 => Ok(MemberType::User),
-        2 => Ok(MemberType::Group),
-        _ => Err(Status::invalid_argument(format!(
-            "invalid member type: {val}"
-        ))),
+        1 => Some(MemberType::User),
+        2 => Some(MemberType::Group),
+        _ => None,
     }
 }
 
-fn proto_member_role(val: i32) -> Result<MemberRole, Status> {
+fn proto_member_role(val: i32) -> Option<MemberRole> {
     match val {
-        1 => Ok(MemberRole::Member),
-        2 => Ok(MemberRole::Manager),
-        3 => Ok(MemberRole::Owner),
-        _ => Err(Status::invalid_argument(format!(
-            "invalid member role: {val}"
-        ))),
+        1 => Some(MemberRole::Member),
+        2 => Some(MemberRole::Manager),
+        3 => Some(MemberRole::Owner),
+        _ => None,
     }
 }
 
@@ -201,11 +197,21 @@ impl GroupService for GroupServiceImpl {
         if req.member_value.is_empty() {
             return Err(Status::invalid_argument("member_value is required"));
         }
-        let member_type = proto_member_type(req.member_type)?;
-        let role = proto_member_role(req.role)?;
+        let member_type = proto_member_type(req.member_type).ok_or_else(|| {
+            Status::invalid_argument(format!("invalid member type: {}", req.member_type))
+        })?;
+        let role = proto_member_role(req.role).ok_or_else(|| {
+            Status::invalid_argument(format!("invalid member role: {}", req.role))
+        })?;
         let member = self
             .identity
-            .add_member(&req.group_name, member_type, &req.member_value, role, &user_id)
+            .add_member(
+                &req.group_name,
+                member_type,
+                &req.member_value,
+                role,
+                &user_id,
+            )
             .await
             .map_err(identity_error_to_status)?;
         Ok(Response::new(member_to_proto(&member, &req.group_name)))
@@ -221,7 +227,9 @@ impl GroupService for GroupServiceImpl {
         if req.group_name.is_empty() {
             return Err(Status::invalid_argument("group_name is required"));
         }
-        let member_type = proto_member_type(req.member_type)?;
+        let member_type = proto_member_type(req.member_type).ok_or_else(|| {
+            Status::invalid_argument(format!("invalid member type: {}", req.member_type))
+        })?;
         self.identity
             .remove_member(&req.group_name, member_type, &req.member_value)
             .await
@@ -262,8 +270,12 @@ impl GroupService for GroupServiceImpl {
         if req.group_name.is_empty() {
             return Err(Status::invalid_argument("group_name is required"));
         }
-        let member_type = proto_member_type(req.member_type)?;
-        let role = proto_member_role(req.role)?;
+        let member_type = proto_member_type(req.member_type).ok_or_else(|| {
+            Status::invalid_argument(format!("invalid member type: {}", req.member_type))
+        })?;
+        let role = proto_member_role(req.role).ok_or_else(|| {
+            Status::invalid_argument(format!("invalid member role: {}", req.role))
+        })?;
         let member = self
             .identity
             .update_member_role(&req.group_name, member_type, &req.member_value, role)
@@ -284,8 +296,12 @@ impl GroupService for GroupServiceImpl {
         }
         let mut entries = Vec::new();
         for entry in &req.members {
-            let mt = proto_member_type(entry.member_type)?;
-            let role = proto_member_role(entry.role)?;
+            let mt = proto_member_type(entry.member_type).ok_or_else(|| {
+                Status::invalid_argument(format!("invalid member type: {}", entry.member_type))
+            })?;
+            let role = proto_member_role(entry.role).ok_or_else(|| {
+                Status::invalid_argument(format!("invalid member role: {}", entry.role))
+            })?;
             entries.push((mt, entry.member_value.clone(), role));
         }
         let members = self

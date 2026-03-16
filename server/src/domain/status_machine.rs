@@ -124,7 +124,10 @@ mod tests {
 
     #[test]
     fn test_auto_transition_assign() {
-        assert_eq!(auto_transition("NEW", true, "user@example.com"), Some("ASSIGNED"));
+        assert_eq!(
+            auto_transition("NEW", true, "user@example.com"),
+            Some("ASSIGNED")
+        );
         assert_eq!(auto_transition("NEW", true, ""), None);
         assert_eq!(auto_transition("NEW", false, "user@example.com"), None);
     }
@@ -138,7 +141,10 @@ mod tests {
 
     #[test]
     fn test_auto_transition_no_change() {
-        assert_eq!(auto_transition("IN_PROGRESS", true, "user@example.com"), None);
+        assert_eq!(
+            auto_transition("IN_PROGRESS", true, "user@example.com"),
+            None
+        );
         assert_eq!(auto_transition("FIXED", true, ""), None);
     }
 

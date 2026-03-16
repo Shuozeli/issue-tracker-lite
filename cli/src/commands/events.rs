@@ -3,16 +3,16 @@ use anyhow::Result;
 use crate::proto::event_log_service_client::EventLogServiceClient;
 use crate::proto::ListEventsRequest;
 
-pub async fn handle(
-    entity_type: String,
-    entity_id: i64,
-    event_type: String,
-    actor: String,
-    page_size: i32,
-    page_token: String,
-    server: &str,
-    user: Option<&str>,
-) -> Result<()> {
+pub struct EventsParams {
+    pub entity_type: String,
+    pub entity_id: i64,
+    pub event_type: String,
+    pub actor: String,
+    pub page_size: i32,
+    pub page_token: String,
+}
+
+pub async fn handle(params: EventsParams, server: &str, user: Option<&str>) -> Result<()> {
     let channel = tonic::transport::Channel::from_shared(server.to_string())?
         .connect()
         .await?;
@@ -34,16 +34,19 @@ pub async fn handle(
 
     let _ = &channel;
 
-    let response = call!(list_events, ListEventsRequest {
-        entity_type,
-        entity_id,
-        event_type,
-        actor,
-        since: None,
-        until: None,
-        page_size,
-        page_token,
-    })?;
+    let response = call!(
+        list_events,
+        ListEventsRequest {
+            entity_type: params.entity_type,
+            entity_id: params.entity_id,
+            event_type: params.event_type,
+            actor: params.actor,
+            since: None,
+            until: None,
+            page_size: params.page_size,
+            page_token: params.page_token,
+        }
+    )?;
     let resp = response.into_inner();
 
     if resp.events.is_empty() {

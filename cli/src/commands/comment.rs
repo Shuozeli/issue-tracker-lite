@@ -67,11 +67,14 @@ pub async fn handle(cmd: CommentCommand, server: &str, user: Option<&str>) -> Re
             body,
             author,
         } => {
-            let response = call!(create_comment, CreateCommentRequest {
-                issue_id,
-                body,
-                author,
-            })?;
+            let response = call!(
+                create_comment,
+                CreateCommentRequest {
+                    issue_id,
+                    body,
+                    author,
+                }
+            )?;
             output::print_comment(&response.into_inner());
         }
         CommentCommand::List {
@@ -79,11 +82,14 @@ pub async fn handle(cmd: CommentCommand, server: &str, user: Option<&str>) -> Re
             page_size,
             page_token,
         } => {
-            let response = call!(list_comments, ListCommentsRequest {
-                issue_id,
-                page_size,
-                page_token,
-            })?;
+            let response = call!(
+                list_comments,
+                ListCommentsRequest {
+                    issue_id,
+                    page_size,
+                    page_token,
+                }
+            )?;
             let resp = response.into_inner();
             output::print_comments(&resp.comments);
             if !resp.next_page_token.is_empty() {

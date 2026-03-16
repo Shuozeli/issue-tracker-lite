@@ -30,11 +30,7 @@ impl Presenter {
         println!();
     }
 
-    pub async fn execute_step(
-        &mut self,
-        step: &Step,
-        server_addr: &str,
-    ) -> anyhow::Result<()> {
+    pub async fn execute_step(&mut self, step: &Step, server_addr: &str) -> anyhow::Result<()> {
         self.step_number += 1;
 
         // Separator

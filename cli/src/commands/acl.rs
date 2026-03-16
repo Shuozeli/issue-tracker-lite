@@ -96,7 +96,10 @@ fn parse_identity_type(s: &str) -> Result<i32> {
         "USER" => Ok(1),
         "GROUP" => Ok(2),
         "PUBLIC" => Ok(3),
-        other => bail!("unknown identity type '{}': expected user, group, or public", other),
+        other => bail!(
+            "unknown identity type '{}': expected user, group, or public",
+            other
+        ),
     }
 }
 
@@ -156,16 +159,19 @@ pub async fn handle(cmd: AclCommand, server: &str, user: Option<&str>) -> Result
             let id_type = parse_identity_type(&identity_type)?;
             let perms: Result<Vec<i32>> = permissions
                 .split(',')
-                .map(|s| parse_component_permission(s))
+                .map(parse_component_permission)
                 .collect();
             let perms = perms?;
 
-            let resp = call!(set_component_acl, SetComponentAclRequest {
-                component_id,
-                identity_type: id_type,
-                identity_value,
-                permissions: perms,
-            })?;
+            let resp = call!(
+                set_component_acl,
+                SetComponentAclRequest {
+                    component_id,
+                    identity_type: id_type,
+                    identity_value,
+                    permissions: perms,
+                }
+            )?;
             output::print_component_acl_entry(&resp.into_inner());
         }
         AclCommand::GetComponent { component_id } => {
@@ -178,11 +184,14 @@ pub async fn handle(cmd: AclCommand, server: &str, user: Option<&str>) -> Result
             identity_value,
         } => {
             let id_type = parse_identity_type(&identity_type)?;
-            call!(remove_component_acl, RemoveComponentAclRequest {
-                component_id,
-                identity_type: id_type,
-                identity_value,
-            })?;
+            call!(
+                remove_component_acl,
+                RemoveComponentAclRequest {
+                    component_id,
+                    identity_type: id_type,
+                    identity_value,
+                }
+            )?;
             println!("ACL entry removed.");
         }
         AclCommand::Check {
@@ -190,11 +199,14 @@ pub async fn handle(cmd: AclCommand, server: &str, user: Option<&str>) -> Result
             user: check_user,
             issue_id,
         } => {
-            let resp = call!(check_component_permission, CheckComponentPermissionRequest {
-                component_id,
-                user_id: check_user,
-                issue_id,
-            })?;
+            let resp = call!(
+                check_component_permission,
+                CheckComponentPermissionRequest {
+                    component_id,
+                    user_id: check_user,
+                    issue_id,
+                }
+            )?;
             output::print_permission_check(&resp.into_inner());
         }
         AclCommand::SetHotlist {
@@ -206,12 +218,15 @@ pub async fn handle(cmd: AclCommand, server: &str, user: Option<&str>) -> Result
             let id_type = parse_identity_type(&identity_type)?;
             let perm = parse_hotlist_permission(&permission)?;
 
-            let resp = call!(set_hotlist_acl, SetHotlistAclRequest {
-                hotlist_id,
-                identity_type: id_type,
-                identity_value,
-                permission: perm,
-            })?;
+            let resp = call!(
+                set_hotlist_acl,
+                SetHotlistAclRequest {
+                    hotlist_id,
+                    identity_type: id_type,
+                    identity_value,
+                    permission: perm,
+                }
+            )?;
             output::print_hotlist_acl_entry(&resp.into_inner());
         }
         AclCommand::GetHotlist { hotlist_id } => {
@@ -224,11 +239,14 @@ pub async fn handle(cmd: AclCommand, server: &str, user: Option<&str>) -> Result
             identity_value,
         } => {
             let id_type = parse_identity_type(&identity_type)?;
-            call!(remove_hotlist_acl, RemoveHotlistAclRequest {
-                hotlist_id,
-                identity_type: id_type,
-                identity_value,
-            })?;
+            call!(
+                remove_hotlist_acl,
+                RemoveHotlistAclRequest {
+                    hotlist_id,
+                    identity_type: id_type,
+                    identity_value,
+                }
+            )?;
             println!("Hotlist ACL entry removed.");
         }
     }

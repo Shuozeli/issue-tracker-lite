@@ -95,15 +95,12 @@ async fn main() -> Result<()> {
     println!("Server running on {}", server.server_addr());
     println!();
 
-    let mut presenter =
-        presenter::Presenter::new(pipeline.steps.len(), it_binary, cli.delay_ms);
+    let mut presenter = presenter::Presenter::new(pipeline.steps.len(), it_binary, cli.delay_ms);
 
     presenter.print_header(&pipeline);
 
     for step in &pipeline.steps {
-        presenter
-            .execute_step(step, &server.server_addr())
-            .await?;
+        presenter.execute_step(step, &server.server_addr()).await?;
     }
 
     presenter.print_footer();

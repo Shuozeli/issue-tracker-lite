@@ -37,8 +37,12 @@ impl MemberType {
             MemberType::Group => "GROUP",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Result<Self, String> {
+impl std::str::FromStr for MemberType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "USER" => Ok(MemberType::User),
             "GROUP" => Ok(MemberType::Group),
@@ -62,8 +66,12 @@ impl MemberRole {
             MemberRole::Owner => "OWNER",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Result<Self, String> {
+impl std::str::FromStr for MemberRole {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "MEMBER" => Ok(MemberRole::Member),
             "MANAGER" => Ok(MemberRole::Manager),
@@ -71,7 +79,9 @@ impl MemberRole {
             other => Err(format!("unknown member role: {other}")),
         }
     }
+}
 
+impl MemberRole {
     /// Returns true if this role can add/remove members of the given role.
     pub fn can_manage(&self, target_role: MemberRole) -> bool {
         match self {

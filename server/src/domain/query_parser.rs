@@ -61,7 +61,9 @@ pub fn parse_query(input: &str) -> ParsedQuery {
         }
 
         // Check for negation
-        let negated = input.as_bytes()[pos] == b'-' && pos + 1 < input.len() && input.as_bytes()[pos + 1] != b' ';
+        let negated = input.as_bytes()[pos] == b'-'
+            && pos + 1 < input.len()
+            && input.as_bytes()[pos + 1] != b' ';
         if negated {
             pos += 1;
         }

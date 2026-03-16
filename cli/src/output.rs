@@ -35,10 +35,22 @@ pub fn print_component(c: &Component) {
         ),
     ]);
     table.add_row(vec![Cell::new("Child Count"), Cell::new(c.child_count)]);
-    table.add_row(vec![Cell::new("Expanded Access"), Cell::new(c.expanded_access_enabled)]);
-    table.add_row(vec![Cell::new("Editable Comments"), Cell::new(c.editable_comments_enabled)]);
-    table.add_row(vec![Cell::new("Created"), Cell::new(format_timestamp(&c.create_time))]);
-    table.add_row(vec![Cell::new("Updated"), Cell::new(format_timestamp(&c.update_time))]);
+    table.add_row(vec![
+        Cell::new("Expanded Access"),
+        Cell::new(c.expanded_access_enabled),
+    ]);
+    table.add_row(vec![
+        Cell::new("Editable Comments"),
+        Cell::new(c.editable_comments_enabled),
+    ]);
+    table.add_row(vec![
+        Cell::new("Created"),
+        Cell::new(format_timestamp(&c.create_time)),
+    ]);
+    table.add_row(vec![
+        Cell::new("Updated"),
+        Cell::new(format_timestamp(&c.update_time)),
+    ]);
     println!("{table}");
 }
 
@@ -49,7 +61,14 @@ pub fn print_components(components: &[Component]) {
     }
 
     let mut table = Table::new();
-    table.set_header(vec!["ID", "Name", "Description", "Parent", "Children", "Created"]);
+    table.set_header(vec![
+        "ID",
+        "Name",
+        "Description",
+        "Parent",
+        "Children",
+        "Created",
+    ]);
 
     for c in components {
         table.add_row(vec![
@@ -136,28 +155,57 @@ pub fn print_issue(i: &Issue) {
     table.add_row(vec![Cell::new("ID"), Cell::new(i.issue_id)]);
     table.add_row(vec![Cell::new("Title"), Cell::new(&i.title)]);
     table.add_row(vec![Cell::new("Status"), Cell::new(status_name(i.status))]);
-    table.add_row(vec![Cell::new("Priority"), Cell::new(priority_name(i.priority))]);
-    table.add_row(vec![Cell::new("Severity"), Cell::new(severity_name(i.severity))]);
-    table.add_row(vec![Cell::new("Type"), Cell::new(issue_type_name(i.r#type))]);
+    table.add_row(vec![
+        Cell::new("Priority"),
+        Cell::new(priority_name(i.priority)),
+    ]);
+    table.add_row(vec![
+        Cell::new("Severity"),
+        Cell::new(severity_name(i.severity)),
+    ]);
+    table.add_row(vec![
+        Cell::new("Type"),
+        Cell::new(issue_type_name(i.r#type)),
+    ]);
     table.add_row(vec![Cell::new("Component"), Cell::new(i.component_id)]);
     table.add_row(vec![
         Cell::new("Assignee"),
-        Cell::new(if i.assignee.is_empty() { "-" } else { &i.assignee }),
+        Cell::new(if i.assignee.is_empty() {
+            "-"
+        } else {
+            &i.assignee
+        }),
     ]);
     table.add_row(vec![
         Cell::new("Reporter"),
-        Cell::new(if i.reporter.is_empty() { "-" } else { &i.reporter }),
+        Cell::new(if i.reporter.is_empty() {
+            "-"
+        } else {
+            &i.reporter
+        }),
     ]);
     if !i.description.is_empty() {
         table.add_row(vec![Cell::new("Description"), Cell::new(&i.description)]);
     }
-    table.add_row(vec![Cell::new("Created"), Cell::new(format_timestamp(&i.create_time))]);
-    table.add_row(vec![Cell::new("Modified"), Cell::new(format_timestamp(&i.modify_time))]);
+    table.add_row(vec![
+        Cell::new("Created"),
+        Cell::new(format_timestamp(&i.create_time)),
+    ]);
+    table.add_row(vec![
+        Cell::new("Modified"),
+        Cell::new(format_timestamp(&i.modify_time)),
+    ]);
     if i.resolve_time.is_some() {
-        table.add_row(vec![Cell::new("Resolved"), Cell::new(format_timestamp(&i.resolve_time))]);
+        table.add_row(vec![
+            Cell::new("Resolved"),
+            Cell::new(format_timestamp(&i.resolve_time)),
+        ]);
     }
     if i.verify_time.is_some() {
-        table.add_row(vec![Cell::new("Verified"), Cell::new(format_timestamp(&i.verify_time))]);
+        table.add_row(vec![
+            Cell::new("Verified"),
+            Cell::new(format_timestamp(&i.verify_time)),
+        ]);
     }
     println!("{table}");
 }
@@ -180,7 +228,11 @@ pub fn print_issues(issues: &[Issue]) {
             Cell::new(status_name(i.status)),
             Cell::new(priority_name(i.priority)),
             Cell::new(issue_type_name(i.r#type)),
-            Cell::new(if i.assignee.is_empty() { "-" } else { &i.assignee }),
+            Cell::new(if i.assignee.is_empty() {
+                "-"
+            } else {
+                &i.assignee
+            }),
             Cell::new(format_timestamp(&i.modify_time)),
         ]);
     }
@@ -201,9 +253,15 @@ pub fn print_comment(c: &Comment) {
         Cell::new(if c.is_description { "yes" } else { "no" }),
     ]);
     table.add_row(vec![Cell::new("Body"), Cell::new(&c.body)]);
-    table.add_row(vec![Cell::new("Created"), Cell::new(format_timestamp(&c.create_time))]);
+    table.add_row(vec![
+        Cell::new("Created"),
+        Cell::new(format_timestamp(&c.create_time)),
+    ]);
     if c.modify_time.is_some() {
-        table.add_row(vec![Cell::new("Modified"), Cell::new(format_timestamp(&c.modify_time))]);
+        table.add_row(vec![
+            Cell::new("Modified"),
+            Cell::new(format_timestamp(&c.modify_time)),
+        ]);
     }
     println!("{table}");
 }
@@ -222,8 +280,14 @@ pub fn print_hotlist(h: &Hotlist) {
     ]);
     table.add_row(vec![Cell::new("Archived"), Cell::new(h.archived)]);
     table.add_row(vec![Cell::new("Issues"), Cell::new(h.issue_count)]);
-    table.add_row(vec![Cell::new("Created"), Cell::new(format_timestamp(&h.create_time))]);
-    table.add_row(vec![Cell::new("Modified"), Cell::new(format_timestamp(&h.modify_time))]);
+    table.add_row(vec![
+        Cell::new("Created"),
+        Cell::new(format_timestamp(&h.create_time)),
+    ]);
+    table.add_row(vec![
+        Cell::new("Modified"),
+        Cell::new(format_timestamp(&h.modify_time)),
+    ]);
     println!("{table}");
 }
 
@@ -234,7 +298,9 @@ pub fn print_hotlists(hotlists: &[Hotlist]) {
     }
 
     let mut table = Table::new();
-    table.set_header(vec!["ID", "Name", "Owner", "Issues", "Archived", "Modified"]);
+    table.set_header(vec![
+        "ID", "Name", "Owner", "Issues", "Archived", "Modified",
+    ]);
 
     for h in hotlists {
         table.add_row(vec![
@@ -263,7 +329,11 @@ pub fn print_hotlist_issues(issues: &[HotlistIssue]) {
         table.add_row(vec![
             Cell::new(hi.position),
             Cell::new(hi.issue_id),
-            Cell::new(if hi.added_by.is_empty() { "-" } else { &hi.added_by }),
+            Cell::new(if hi.added_by.is_empty() {
+                "-"
+            } else {
+                &hi.added_by
+            }),
             Cell::new(format_timestamp(&hi.add_time)),
         ]);
     }
@@ -310,11 +380,24 @@ pub fn print_component_acl_entry(e: &ComponentAclEntry) {
     let mut table = Table::new();
     table.set_header(vec!["Field", "Value"]);
     table.add_row(vec![Cell::new("Component ID"), Cell::new(e.component_id)]);
-    table.add_row(vec![Cell::new("Identity Type"), Cell::new(identity_type_name(e.identity_type))]);
-    table.add_row(vec![Cell::new("Identity Value"), Cell::new(&e.identity_value)]);
-    let perms: Vec<&str> = e.permissions.iter().map(|p| component_permission_name(*p)).collect();
+    table.add_row(vec![
+        Cell::new("Identity Type"),
+        Cell::new(identity_type_name(e.identity_type)),
+    ]);
+    table.add_row(vec![
+        Cell::new("Identity Value"),
+        Cell::new(&e.identity_value),
+    ]);
+    let perms: Vec<&str> = e
+        .permissions
+        .iter()
+        .map(|p| component_permission_name(*p))
+        .collect();
     table.add_row(vec![Cell::new("Permissions"), Cell::new(perms.join(", "))]);
-    table.add_row(vec![Cell::new("Created"), Cell::new(format_timestamp(&e.create_time))]);
+    table.add_row(vec![
+        Cell::new("Created"),
+        Cell::new(format_timestamp(&e.create_time)),
+    ]);
     println!("{table}");
 }
 
@@ -325,10 +408,19 @@ pub fn print_component_acl_entries(entries: &[ComponentAclEntry]) {
     }
 
     let mut table = Table::new();
-    table.set_header(vec!["Identity Type", "Identity Value", "Permissions", "Created"]);
+    table.set_header(vec![
+        "Identity Type",
+        "Identity Value",
+        "Permissions",
+        "Created",
+    ]);
 
     for e in entries {
-        let perms: Vec<&str> = e.permissions.iter().map(|p| component_permission_name(*p)).collect();
+        let perms: Vec<&str> = e
+            .permissions
+            .iter()
+            .map(|p| component_permission_name(*p))
+            .collect();
         table.add_row(vec![
             Cell::new(identity_type_name(e.identity_type)),
             Cell::new(&e.identity_value),
@@ -344,10 +436,22 @@ pub fn print_hotlist_acl_entry(e: &HotlistAclEntry) {
     let mut table = Table::new();
     table.set_header(vec!["Field", "Value"]);
     table.add_row(vec![Cell::new("Hotlist ID"), Cell::new(e.hotlist_id)]);
-    table.add_row(vec![Cell::new("Identity Type"), Cell::new(identity_type_name(e.identity_type))]);
-    table.add_row(vec![Cell::new("Identity Value"), Cell::new(&e.identity_value)]);
-    table.add_row(vec![Cell::new("Permission"), Cell::new(hotlist_permission_name(e.permission))]);
-    table.add_row(vec![Cell::new("Created"), Cell::new(format_timestamp(&e.create_time))]);
+    table.add_row(vec![
+        Cell::new("Identity Type"),
+        Cell::new(identity_type_name(e.identity_type)),
+    ]);
+    table.add_row(vec![
+        Cell::new("Identity Value"),
+        Cell::new(&e.identity_value),
+    ]);
+    table.add_row(vec![
+        Cell::new("Permission"),
+        Cell::new(hotlist_permission_name(e.permission)),
+    ]);
+    table.add_row(vec![
+        Cell::new("Created"),
+        Cell::new(format_timestamp(&e.create_time)),
+    ]);
     println!("{table}");
 }
 
@@ -358,7 +462,12 @@ pub fn print_hotlist_acl_entries(entries: &[HotlistAclEntry]) {
     }
 
     let mut table = Table::new();
-    table.set_header(vec!["Identity Type", "Identity Value", "Permission", "Created"]);
+    table.set_header(vec![
+        "Identity Type",
+        "Identity Value",
+        "Permission",
+        "Created",
+    ]);
 
     for e in entries {
         table.add_row(vec![
@@ -375,11 +484,22 @@ pub fn print_hotlist_acl_entries(entries: &[HotlistAclEntry]) {
 pub fn print_permission_check(resp: &CheckComponentPermissionResponse) {
     let mut table = Table::new();
     table.set_header(vec!["Field", "Value"]);
-    table.add_row(vec![Cell::new("Grant Source"), Cell::new(&resp.grant_source)]);
-    let perms: Vec<&str> = resp.permissions.iter().map(|p| component_permission_name(*p)).collect();
+    table.add_row(vec![
+        Cell::new("Grant Source"),
+        Cell::new(&resp.grant_source),
+    ]);
+    let perms: Vec<&str> = resp
+        .permissions
+        .iter()
+        .map(|p| component_permission_name(*p))
+        .collect();
     table.add_row(vec![
         Cell::new("Effective Permissions"),
-        Cell::new(if perms.is_empty() { "none".to_string() } else { perms.join(", ") }),
+        Cell::new(if perms.is_empty() {
+            "none".to_string()
+        } else {
+            perms.join(", ")
+        }),
     ]);
     println!("{table}");
 }
@@ -391,7 +511,11 @@ pub fn print_comments(comments: &[Comment]) {
     }
 
     for c in comments {
-        let desc_marker = if c.is_description { " [description]" } else { "" };
+        let desc_marker = if c.is_description {
+            " [description]"
+        } else {
+            ""
+        };
         let author = if c.author.is_empty() { "-" } else { &c.author };
         println!(
             "#{} by {} at {}{}\n{}\n",

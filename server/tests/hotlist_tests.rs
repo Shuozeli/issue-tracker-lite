@@ -1,3 +1,4 @@
+#[allow(dead_code, unused_imports)]
 mod common;
 use common::*;
 
@@ -299,10 +300,7 @@ async fn test_hotlist_archive_and_filter() {
         .unwrap()
         .into_inner();
     assert_eq!(archived_list.hotlists.len(), 1);
-    assert_eq!(
-        archived_list.hotlists[0].hotlist_id,
-        archived.hotlist_id
-    );
+    assert_eq!(archived_list.hotlists[0].hotlist_id, archived.hotlist_id);
 
     // "all" filter returns both
     let all_list = hotlist

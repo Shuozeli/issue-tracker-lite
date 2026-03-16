@@ -22,7 +22,7 @@ pub enum ComponentPermission {
 }
 
 impl ComponentPermission {
-    pub fn from_str(s: &str) -> Result<Self, DomainError> {
+    pub fn parse(s: &str) -> Result<Self, DomainError> {
         match s {
             "VIEW_ISSUES" => Ok(Self::ViewIssues),
             "COMMENT_ON_ISSUES" => Ok(Self::CommentOnIssues),
@@ -257,10 +257,7 @@ pub async fn check_component_permission_quiver<C: Connection>(
     // Step 1: Check component ACL for direct match
     let acl_q = Query::table("ComponentAcl")
         .find_many()
-        .filter(Filter::eq(
-            "componentId",
-            Value::Int(component_id as i64),
-        ))
+        .filter(Filter::eq("componentId", Value::Int(component_id)))
         .build();
     let acl_rows = conn
         .query(&acl_q)
@@ -280,7 +277,7 @@ pub async fn check_component_permission_quiver<C: Connection>(
                 serde_json::from_str(&acl.permissions).unwrap_or_default();
             let perms: Vec<ComponentPermission> = perm_strings
                 .iter()
-                .filter_map(|s| ComponentPermission::from_str(s).ok())
+                .filter_map(|s| ComponentPermission::parse(s).ok())
                 .collect();
             let expanded = expand_permissions(&perms);
             if expanded.contains(&required) {
@@ -293,7 +290,7 @@ pub async fn check_component_permission_quiver<C: Connection>(
     if let Some(iid) = issue_id {
         let comp_q = Query::table("Component")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(component_id as i64)))
+            .filter(Filter::eq("id", Value::Int(component_id)))
             .build();
         let comp_row = conn
             .query_optional(&comp_q)
@@ -305,7 +302,7 @@ pub async fn check_component_permission_quiver<C: Connection>(
             if comp.expanded_access_enabled {
                 let issue_q = Query::table("Issue")
                     .find_first()
-                    .filter(Filter::eq("id", Value::Int(iid as i64)))
+                    .filter(Filter::eq("id", Value::Int(iid)))
                     .build();
                 let issue_row = conn
                     .query_optional(&issue_q)
@@ -330,9 +327,7 @@ pub async fn check_component_permission_quiver<C: Connection>(
         }
     }
 
-    Err(DomainError::PermissionDenied(
-        "access denied".to_string(),
-    ))
+    Err(DomainError::PermissionDenied("access denied".to_string()))
 }
 
 /// Quiver-based hotlist permission check.
@@ -355,7 +350,7 @@ pub async fn check_hotlist_permission_quiver<C: Connection>(
 
     let acl_q = Query::table("HotlistAcl")
         .find_many()
-        .filter(Filter::eq("hotlistId", Value::Int(hotlist_id as i64)))
+        .filter(Filter::eq("hotlistId", Value::Int(hotlist_id)))
         .build();
     let acl_rows = conn
         .query(&acl_q)
@@ -375,9 +370,7 @@ pub async fn check_hotlist_permission_quiver<C: Connection>(
         }
     }
 
-    Err(DomainError::PermissionDenied(
-        "access denied".to_string(),
-    ))
+    Err(DomainError::PermissionDenied("access denied".to_string()))
 }
 
 /// Return the set of component IDs the user has at least `required` permission on.
@@ -416,7 +409,7 @@ pub async fn get_accessible_component_ids<C: Connection>(
                 serde_json::from_str(&acl.permissions).unwrap_or_default();
             let perms: Vec<ComponentPermission> = perm_strings
                 .iter()
-                .filter_map(|s| ComponentPermission::from_str(s).ok())
+                .filter_map(|s| ComponentPermission::parse(s).ok())
                 .collect();
             let expanded = expand_permissions(&perms);
             if expanded.contains(&required) {
@@ -517,9 +510,18 @@ mod tests {
     #[test]
     fn test_hotlist_permission_implies() {
         assert!(hotlist_permission_implies("HOTLIST_ADMIN", "HOTLIST_VIEW"));
-        assert!(hotlist_permission_implies("HOTLIST_ADMIN", "HOTLIST_VIEW_APPEND"));
-        assert!(hotlist_permission_implies("HOTLIST_VIEW_APPEND", "HOTLIST_VIEW"));
-        assert!(!hotlist_permission_implies("HOTLIST_VIEW", "HOTLIST_VIEW_APPEND"));
+        assert!(hotlist_permission_implies(
+            "HOTLIST_ADMIN",
+            "HOTLIST_VIEW_APPEND"
+        ));
+        assert!(hotlist_permission_implies(
+            "HOTLIST_VIEW_APPEND",
+            "HOTLIST_VIEW"
+        ));
+        assert!(!hotlist_permission_implies(
+            "HOTLIST_VIEW",
+            "HOTLIST_VIEW_APPEND"
+        ));
         assert!(!hotlist_permission_implies("HOTLIST_VIEW", "HOTLIST_ADMIN"));
     }
 
@@ -529,7 +531,7 @@ mod tests {
             let perm = ComponentPermission::from_proto(val).unwrap();
             assert_eq!(perm.to_proto(), val);
             let s = perm.as_str();
-            let perm2 = ComponentPermission::from_str(s).unwrap();
+            let perm2 = ComponentPermission::parse(s).unwrap();
             assert_eq!(perm, perm2);
         }
     }

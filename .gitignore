@@ -11,6 +11,12 @@ node_modules/
 # Environment
 .env
 
+# Agent rules
+.claude/
+
+# Credential patterns (contains PII)
+.credential-patterns
+
 # IDE
 .idea/
 .vscode/

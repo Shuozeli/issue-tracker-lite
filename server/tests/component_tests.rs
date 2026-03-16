@@ -1,3 +1,4 @@
+#[allow(dead_code, unused_imports)]
 mod common;
 use common::*;
 
@@ -208,9 +209,7 @@ async fn test_nested_component_hierarchy_child_count() {
     let _c3 = create_component(&mut client, &mut acl, "Child3", Some(root)).await;
 
     let got = client
-        .get_component(GetComponentRequest {
-            component_id: root,
-        })
+        .get_component(GetComponentRequest { component_id: root })
         .await
         .unwrap()
         .into_inner();

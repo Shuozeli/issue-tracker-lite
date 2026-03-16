@@ -1,8 +1,8 @@
 use quiver_driver_core::{Connection, Pool, Statement, Transaction, Transactional, Value};
 use tonic::{Request, Response, Status};
 
-use crate::db::DbConn;
 use crate::db::row_mapping::EventLog;
+use crate::db::DbConn;
 use crate::domain::types::DomainError;
 
 use crate::proto::event_log_service_server::EventLogService;
@@ -61,7 +61,7 @@ impl EventLogService for EventLogServiceImpl {
 
         if req.entity_id != 0 {
             conditions.push("entityId = ?".to_string());
-            params.push(Value::Int(req.entity_id as i64));
+            params.push(Value::Int(req.entity_id));
         }
 
         if !req.event_type.is_empty() {
@@ -90,9 +90,10 @@ impl EventLogService for EventLogServiceImpl {
 
         // Cursor-based pagination: DESC order on id, so cursor means id < cursor
         if !req.page_token.is_empty() {
-            let cursor_id = req.page_token.parse::<i64>().map_err(|_| {
-                DomainError::InvalidArgument("invalid page_token".to_string())
-            })?;
+            let cursor_id = req
+                .page_token
+                .parse::<i64>()
+                .map_err(|_| DomainError::InvalidArgument("invalid page_token".to_string()))?;
             conditions.push("id < ?".to_string());
             params.push(Value::Int(cursor_id));
         }
@@ -111,7 +112,10 @@ impl EventLogService for EventLogServiceImpl {
 
         let built = Statement::new(sql, params);
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()

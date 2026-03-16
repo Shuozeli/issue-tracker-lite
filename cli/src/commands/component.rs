@@ -87,11 +87,14 @@ pub async fn handle(cmd: ComponentCommand, server: &str, user: Option<&str>) -> 
             description,
             parent_id,
         } => {
-            let response = call!(create_component, CreateComponentRequest {
-                name,
-                description,
-                parent_id,
-            })?;
+            let response = call!(
+                create_component,
+                CreateComponentRequest {
+                    name,
+                    description,
+                    parent_id,
+                }
+            )?;
             output::print_component(&response.into_inner());
         }
         ComponentCommand::Get { id } => {
@@ -103,11 +106,14 @@ pub async fn handle(cmd: ComponentCommand, server: &str, user: Option<&str>) -> 
             page_size,
             page_token,
         } => {
-            let response = call!(list_components, ListComponentsRequest {
-                parent_id,
-                page_size,
-                page_token,
-            })?;
+            let response = call!(
+                list_components,
+                ListComponentsRequest {
+                    parent_id,
+                    page_size,
+                    page_token,
+                }
+            )?;
             let resp = response.into_inner();
             output::print_components(&resp.components);
             if !resp.next_page_token.is_empty() {
@@ -120,18 +126,24 @@ pub async fn handle(cmd: ComponentCommand, server: &str, user: Option<&str>) -> 
             description,
             parent_id,
         } => {
-            let response = call!(update_component, UpdateComponentRequest {
-                component_id: id,
-                name,
-                description,
-                parent_id,
-                update_mask: None,
-                ..Default::default()
-            })?;
+            let response = call!(
+                update_component,
+                UpdateComponentRequest {
+                    component_id: id,
+                    name,
+                    description,
+                    parent_id,
+                    update_mask: None,
+                    ..Default::default()
+                }
+            )?;
             output::print_component(&response.into_inner());
         }
         ComponentCommand::Delete { id } => {
-            call!(delete_component, DeleteComponentRequest { component_id: id })?;
+            call!(
+                delete_component,
+                DeleteComponentRequest { component_id: id }
+            )?;
             println!("Component {} deleted.", id);
         }
     }

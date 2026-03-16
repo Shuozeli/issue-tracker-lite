@@ -6,15 +6,15 @@ use tonic::{Request, Response, Status};
 
 use identity::IdentityProvider;
 
-use crate::db::DbConn;
 use crate::db::row_mapping::Component;
+use crate::db::DbConn;
 use crate::domain::permissions;
 use crate::domain::types::DomainError;
 use crate::proto::component_service_server::ComponentService;
 use crate::proto::{
     Component as ProtoComponent, CreateComponentRequest, DeleteComponentRequest,
-    DeleteComponentResponse, GetComponentRequest, ListComponentsRequest,
-    ListComponentsResponse, UpdateComponentRequest,
+    DeleteComponentResponse, GetComponentRequest, ListComponentsRequest, ListComponentsResponse,
+    UpdateComponentRequest,
 };
 
 pub struct ComponentServiceImpl {
@@ -67,11 +67,18 @@ impl ComponentService for ComponentServiceImpl {
         }
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -82,16 +89,17 @@ impl ComponentService for ComponentServiceImpl {
         if let Some(parent_id) = req.parent_id {
             let find_parent = Query::table("Component")
                 .find_first()
-                .filter(Filter::eq("id", Value::Int(parent_id as i64)))
+                .filter(Filter::eq("id", Value::Int(parent_id)))
                 .build();
             let parent_row = tx
                 .query_optional(&find_parent)
                 .await
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
             if parent_row.is_none() {
-                return Err(
-                    DomainError::NotFound(format!("parent component {parent_id} not found")).into(),
-                );
+                return Err(DomainError::NotFound(format!(
+                    "parent component {parent_id} not found"
+                ))
+                .into());
             }
             permissions::check_component_permission_quiver(
                 &tx,
@@ -115,7 +123,7 @@ impl ComponentService for ComponentServiceImpl {
             .set("updatedAt", now);
 
         if let Some(parent_id) = req.parent_id {
-            create_q = create_q.set("parentId", Value::Int(parent_id as i64));
+            create_q = create_q.set("parentId", Value::Int(parent_id));
         }
 
         let stmt = create_q.build();
@@ -146,11 +154,18 @@ impl ComponentService for ComponentServiceImpl {
         let req = request.into_inner();
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -159,7 +174,7 @@ impl ComponentService for ComponentServiceImpl {
 
         let find_q = Query::table("Component")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(req.component_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.component_id)))
             .build();
 
         let row = tx
@@ -186,7 +201,7 @@ impl ComponentService for ComponentServiceImpl {
         // Count children
         let count_q = Query::table("Component")
             .find_many()
-            .filter(Filter::eq("parentId", Value::Int(req.component_id as i64)))
+            .filter(Filter::eq("parentId", Value::Int(req.component_id)))
             .build();
         let children = tx
             .query(&count_q)
@@ -218,11 +233,18 @@ impl ComponentService for ComponentServiceImpl {
         };
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -243,7 +265,7 @@ impl ComponentService for ComponentServiceImpl {
         // Filter by parent_id
         match req.parent_id {
             Some(pid) => {
-                q = q.filter(Filter::eq("parentId", Value::Int(pid as i64)));
+                q = q.filter(Filter::eq("parentId", Value::Int(pid)));
             }
             None => {
                 q = q.filter(Filter::is_null("parentId"));
@@ -254,9 +276,10 @@ impl ComponentService for ComponentServiceImpl {
 
         // Cursor-based pagination: use id > cursor
         if !req.page_token.is_empty() {
-            let cursor_id = req.page_token.parse::<i64>().map_err(|_| {
-                DomainError::InvalidArgument("invalid page_token".to_string())
-            })?;
+            let cursor_id = req
+                .page_token
+                .parse::<i64>()
+                .map_err(|_| DomainError::InvalidArgument("invalid page_token".to_string()))?;
             q = q.filter(Filter::gt("id", Value::Int(cursor_id)));
         }
 
@@ -325,11 +348,18 @@ impl ComponentService for ComponentServiceImpl {
         }
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -339,7 +369,7 @@ impl ComponentService for ComponentServiceImpl {
         // Verify exists
         let find_q = Query::table("Component")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(req.component_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.component_id)))
             .build();
         let existing = tx
             .query_optional(&find_q)
@@ -365,23 +395,24 @@ impl ComponentService for ComponentServiceImpl {
         if let Some(parent_id) = req.parent_id {
             let find_parent = Query::table("Component")
                 .find_first()
-                .filter(Filter::eq("id", Value::Int(parent_id as i64)))
+                .filter(Filter::eq("id", Value::Int(parent_id)))
                 .build();
             let parent_row = tx
                 .query_optional(&find_parent)
                 .await
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
             if parent_row.is_none() {
-                return Err(
-                    DomainError::NotFound(format!("parent component {parent_id} not found")).into(),
-                );
+                return Err(DomainError::NotFound(format!(
+                    "parent component {parent_id} not found"
+                ))
+                .into());
             }
         }
 
         // Build update query
         let mut update_q = Query::table("Component")
             .update()
-            .filter(Filter::eq("id", Value::Int(req.component_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.component_id)))
             .set("updatedAt", now_utc());
 
         if let Some(name) = req.name {
@@ -391,7 +422,7 @@ impl ComponentService for ComponentServiceImpl {
             update_q = update_q.set("description", Value::Text(description));
         }
         if let Some(parent_id) = req.parent_id {
-            update_q = update_q.set("parentId", Value::Int(parent_id as i64));
+            update_q = update_q.set("parentId", Value::Int(parent_id));
         }
         if let Some(expanded) = req.expanded_access_enabled {
             update_q = update_q.set("expandedAccessEnabled", Value::Bool(expanded));
@@ -408,7 +439,7 @@ impl ComponentService for ComponentServiceImpl {
         // Re-fetch updated row (no RETURNING)
         let refetch = Query::table("Component")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(req.component_id as i64)))
+            .filter(Filter::eq("id", Value::Int(req.component_id)))
             .build();
         let row = tx
             .query_one(&refetch)
@@ -432,11 +463,18 @@ impl ComponentService for ComponentServiceImpl {
         let cid = req.component_id;
 
         let user_groups = match user_id.as_deref() {
-            Some(uid) => self.identity.resolve_user_groups(uid).await.unwrap_or_default(),
+            Some(uid) => self
+                .identity
+                .resolve_user_groups(uid)
+                .await
+                .unwrap_or_default(),
             None => vec![],
         };
 
-        let mut conn = self.db.acquire().await
+        let mut conn = self
+            .db
+            .acquire()
+            .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         let tx = conn
             .begin()
@@ -446,7 +484,7 @@ impl ComponentService for ComponentServiceImpl {
         // Check exists
         let find_q = Query::table("Component")
             .find_first()
-            .filter(Filter::eq("id", Value::Int(cid as i64)))
+            .filter(Filter::eq("id", Value::Int(cid)))
             .build();
         let existing = tx
             .query_optional(&find_q)
@@ -469,7 +507,7 @@ impl ComponentService for ComponentServiceImpl {
         // Check no children
         let children_q = Query::table("Component")
             .find_many()
-            .filter(Filter::eq("parentId", Value::Int(cid as i64)))
+            .filter(Filter::eq("parentId", Value::Int(cid)))
             .build();
         let children = tx
             .query(&children_q)
@@ -486,7 +524,7 @@ impl ComponentService for ComponentServiceImpl {
         // Check no issues
         let issues_q = Query::table("Issue")
             .find_many()
-            .filter(Filter::eq("componentId", Value::Int(cid as i64)))
+            .filter(Filter::eq("componentId", Value::Int(cid)))
             .limit(1)
             .build();
         let issues = tx
@@ -503,7 +541,7 @@ impl ComponentService for ComponentServiceImpl {
         // Delete ACLs first (foreign key constraint)
         let delete_acls = Query::table("ComponentAcl")
             .delete()
-            .filter(Filter::eq("componentId", Value::Int(cid as i64)))
+            .filter(Filter::eq("componentId", Value::Int(cid)))
             .build();
         tx.execute(&delete_acls)
             .await
@@ -511,7 +549,7 @@ impl ComponentService for ComponentServiceImpl {
 
         let delete_q = Query::table("Component")
             .delete()
-            .filter(Filter::eq("id", Value::Int(cid as i64)))
+            .filter(Filter::eq("id", Value::Int(cid)))
             .build();
         tx.execute(&delete_q)
             .await

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use quiver_driver_core::{Row, Value};
 
 use crate::error::IdentityError;
@@ -52,10 +54,9 @@ pub fn group_member_from_row(row: &Row) -> Result<GroupMember, IdentityError> {
     Ok(GroupMember {
         id: get_i32(row, "id")?,
         group_id: get_i32(row, "groupId")?,
-        member_type: MemberType::from_str(&member_type_str)
-            .map_err(|e| IdentityError::Internal(e))?,
+        member_type: MemberType::from_str(&member_type_str).map_err(IdentityError::Internal)?,
         member_value: get_text(row, "memberValue")?,
-        role: MemberRole::from_str(&role_str).map_err(|e| IdentityError::Internal(e))?,
+        role: MemberRole::from_str(&role_str).map_err(IdentityError::Internal)?,
         added_by: get_text(row, "addedBy")?,
         created_at: get_text(row, "createdAt")?,
     })
