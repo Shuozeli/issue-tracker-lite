@@ -1,4 +1,4 @@
-<!-- agent-updated: 2026-03-15T20:00:00Z -->
+<!-- agent-updated: 2026-03-16T06:00:00Z -->
 
 # Issue Tracker Lite -- Documentation Index
 
@@ -10,7 +10,15 @@ overview, then drill into the area you need.
 
 ---
 
-## 1. Architecture & Design
+## 1. Getting Started
+
+| Document | Path | Description |
+|---|---|---|
+| **Usage Guide** | [`docs/usage.md`](usage.md) | Server setup, CLI commands, search query language, web UI |
+| **Codelabs** | [`docs/codelabs.md`](codelabs.md) | Step-by-step tutorials: bug triage, team ACLs, search + hotlists |
+| **API Reference** | [`docs/API.md`](API.md) | All 9 gRPC services, RPC signatures, enums, error codes |
+
+## 2. Architecture & Design
 
 | Document | Path | Description |
 |---|---|---|
@@ -18,7 +26,14 @@ overview, then drill into the area you need.
 | **Implementation Phases** | [`docs/specs/phases.md`](specs/phases.md) | All 10 phases with deliverables, verification notes, and implementation details |
 | **UI Architecture** | [`ui/docs/architecture.md`](../ui/docs/architecture.md) | Three-tier browser architecture, directory structure, data flow, design decisions |
 
-## 2. Domain Specifications
+## 3. Project Status
+
+| Document | Path | Description |
+|---|---|---|
+| **Tasks** | [`docs/tasks.md`](tasks.md) | Roadmap: completed items and pending work |
+| **Changelog** | [`docs/CHANGELOG.md`](CHANGELOG.md) | Version history |
+
+## 4. Domain Specifications
 
 Detailed specs for each domain entity, derived from the official Google Issue Tracker
 documentation (crawled to `crawler/docs-output/markdown/`).
@@ -37,7 +52,7 @@ documentation (crawled to `crawler/docs-output/markdown/`).
 | User Settings | [`docs/specs/user-settings.md`](specs/user-settings.md) | Per-user preferences |
 | Database Schema | [`docs/specs/database-schema.md`](specs/database-schema.md) | Reference schema design |
 
-## 3. Server (Rust gRPC)
+## 5. Server (Rust gRPC)
 
 The server lives in `server/` within the workspace root. Key files:
 
@@ -51,7 +66,7 @@ The server lives in `server/` within the workspace root. Key files:
 | Domain logic | `server/src/domain/*.rs` | Status machine, permissions engine, query parser |
 | Integration tests | `server/tests/` | 167 tests split across 9 files by service, each with isolated temp SQLite DB |
 
-## 4. CLI (Rust gRPC Client)
+## 6. CLI (Rust gRPC Client)
 
 The CLI lives in `cli/`. Key files:
 
@@ -61,7 +76,7 @@ The CLI lives in `cli/`. Key files:
 | Commands | `cli/src/commands/*.rs` | Subcommands: component, issue, comment, hotlist, search, events, acl |
 | Output formatting | `cli/src/output.rs` | Table and JSON output |
 
-## 5. Web UI (React SPA)
+## 7. Web UI (React SPA)
 
 The UI lives in `ui/`. It has its own documentation set:
 
@@ -86,7 +101,7 @@ ui/
   e2e/            # Playwright tests and demo runner
 ```
 
-## 6. Demo System
+## 8. Demo System
 
 Two demo systems exist:
 
@@ -99,7 +114,7 @@ Two demo systems exist:
 
 Browser demo scenarios: quickstart, triage, lifecycle, comments, search, full.
 
-## 7. Crawler (Reference Data)
+## 9. Crawler (Reference Data)
 
 | Area | Path | Description |
 |---|---|---|
@@ -107,7 +122,7 @@ Browser demo scenarios: quickstart, triage, lifecycle, comments, search, full.
 | Crawled output | `crawler/docs-output/markdown/` | 47 markdown files from developers.google.com/issue-tracker |
 | Crawler docs | `crawler/docs/README.md` | Crawler setup and usage |
 
-## 8. Build & Run
+## 10. Build & Run
 
 ### Prerequisites
 - Rust toolchain (cargo)
@@ -133,7 +148,7 @@ cargo test -p issuetracker-server  # 167 gRPC integration tests (9 files)
 cd ui && pnpm test:e2e            # Playwright E2E tests
 ```
 
-## 9. Key Patterns
+## 11. Key Patterns
 
 | Pattern | Where | Description |
 |---|---|---|
@@ -145,7 +160,7 @@ cd ui && pnpm test:e2e            # Playwright E2E tests
 | Centralized test IDs | `ui/src/testIds.ts` | Structured object shared between React components and Playwright tests |
 | REST-to-gRPC proxy | `ui/server/` | Express translates REST calls to gRPC, maps error codes to HTTP status |
 
-## 10. Configuration
+## 12. Configuration
 
 | Variable | Default | Used By | Description |
 |---|---|---|---|
