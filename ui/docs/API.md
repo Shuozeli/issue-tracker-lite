@@ -1,4 +1,4 @@
-<!-- agent-updated: 2026-03-14T12:00:00Z -->
+<!-- agent-updated: 2026-03-19T00:00:00Z -->
 
 # UI API Reference
 
@@ -13,7 +13,7 @@ Development: `http://localhost:3001/api` (proxied via Vite at `http://localhost:
 
 | Header | Required | Description |
 |---|---|---|
-| `x-user-id` | No | User identity for permission checks. Omit for anonymous access. |
+| `x-user-id` | Yes | User identity for permission checks. Required by the gRPC server (returns PERMISSION_DENIED if missing). |
 | `Content-Type` | Yes (POST/PATCH) | `application/json` |
 
 ## Endpoints

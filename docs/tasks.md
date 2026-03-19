@@ -1,4 +1,4 @@
-<!-- agent-updated: 2026-03-16T06:00:00Z -->
+<!-- agent-updated: 2026-03-19T00:00:00Z -->
 
 # Project Tasks / Roadmap
 
@@ -13,6 +13,7 @@
 - [x] Proto enum conversion via prost as_str_name/from_str_name (2026-03-15)
 - [x] Integration tests split into 9 files (167 tests passing) (2026-03-15)
 - [x] Documentation refresh (API.md, tasks.md, CHANGELOG.md) (2026-03-16)
+- [x] Security hardening: ACL RPCs require auth + ADMIN permission, hotlist create requires auth, owner override, bootstrap logic, 13 new ACL tests, e2e_security_hardening test, security demo pipeline (2026-03-16)
 
 ## Pending
 

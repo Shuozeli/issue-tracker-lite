@@ -1,4 +1,4 @@
-<!-- agent-updated: 2026-03-15T20:00:00Z -->
+<!-- agent-updated: 2026-03-19T00:00:00Z -->
 
 # Implementation Phases
 
@@ -12,7 +12,7 @@ with a working, testable artifact. Later phases never break earlier ones.
 | Language | Rust | -- |
 | gRPC | tonic | `tonic`, `prost` |
 | Proto codegen | tonic-build | `tonic-build` |
-| ORM / DB client | Quiver ORM | `quiver-driver-sqlite`, `quiver-query`, `quiver-codegen` (path deps from `../../quiver-orm/crates/`) |
+| ORM / DB client | Quiver ORM | `quiver-driver-sqlite`, `quiver-query`, `quiver-codegen` (git dep: `github.com/Shuozeli/quiver-orm.git`, rev `3e378a6`) |
 | Schema / Migrations | Quiver schema + codegen | `schema.quiver` + `quiver generate -t rust-serde` |
 | CLI | clap | `clap` (derive) |
 | gRPC client | tonic | `tonic` |
@@ -98,6 +98,7 @@ issue-tracker-lite/
     Cargo.toml
     build.rs
   demo/                        # Demo scripts and data seeding
+  test-utils/                  # Shared test fixtures (TestFixture, helpers)
   Cargo.toml                   # Workspace root
 ```
 
@@ -281,8 +282,8 @@ gRPC server starts and responds to health check. CLI connects.
   - Fields: `status`, `priority`, `severity`, `type`, `assignee`, `reporter`, `componentid` (with `+` for recursive), `hotlistid`
   - Operators: AND (whitespace), NOT (`-`), exact phrase (`"..."`)
   - Special values: `open`, `closed`, `none`, `any`
-- [x] `search_service.rs`: parses query, builds Prisma where clauses
-  - Keyword search via `contains` on title/description (not FTS5 -- prisma-rs doesn't support raw SQL)
+- [x] `search_service.rs`: parses query, builds SQL where clauses via Quiver Query
+  - Keyword search via LIKE on title/description (not FTS5)
   - Recursive component search via BFS to find descendant IDs
   - Hotlist filter via join table lookup
 - [x] Pagination: cursor-based
@@ -466,15 +467,16 @@ cargo test -p issuetracker-server --test issue_tests test_status_full_lifecycle
 cargo test -p issuetracker-server --tests -- --nocapture
 ```
 
-**Verification:** `cargo test -p issuetracker-server --tests` passes -- 167 integration tests across 9 files. All temp DB files are cleaned up. Tests run in parallel without interference.
+**Verification:** `cargo test -p issuetracker-server --tests` passes -- 180 integration tests across 10 files. All temp DB files are cleaned up. Tests run in parallel without interference.
 
 ---
 
 ## Phase 9: Access Control
 
 **Goal:** Component and hotlist ACLs, per-issue access levels, permission enforcement on
-all RPCs. Gradual rollout via optional `x-user-id` header (anonymous access allowed when
-header is absent).
+all RPCs. Authentication via required `x-user-id` header (PERMISSION_DENIED when absent).
+ACL RPCs require ADMIN permission on the target resource (bootstrap: first ACL entry allowed
+without perm check).
 
 **Deliverables:**
 - [x] Quiver schema: `ComponentAcl` and `HotlistAcl` models, `accessLevel` field on `Issue`
@@ -494,7 +496,7 @@ header is absent).
   - Hierarchical permission check (walks up parent component chain)
 - [x] `acl_service.rs`: gRPC handlers for all 7 ACL RPCs
   - Permission enforcement on all existing RPCs via `x-user-id` metadata header
-  - Gradual rollout: missing `x-user-id` header = allowed (anonymous access)
+  - Auth required: missing `x-user-id` header = PERMISSION_DENIED
   - All DB operations wrapped in transactions
 - [x] `UpdateComponentRequest` expanded with `expanded_access_enabled` and `editable_comments_enabled` fields
 - [x] Transaction wrapping: all services (component, issue, comment, hotlist, search, event log, ACL) now use transactions via `pool.acquire()` -> `begin()` for all DB operations
@@ -506,14 +508,14 @@ header is absent).
   - `acl set-hotlist <hotlist_id> --user <user> --role <role>`
   - `acl get-hotlist <hotlist_id>`
   - `acl remove-hotlist <hotlist_id> --user <user>`
-- [x] Integration tests: 23 ACL + permission enforcement tests added
+- [x] Integration tests: 44 ACL + permission enforcement tests (including 13 added in security hardening pass)
 - [x] Event logging for ACL mutations
 
-**Verification:** All 7 ACL RPCs working. Permission enforcement verified: unauthenticated access allowed (gradual rollout), authenticated users checked against component ACL hierarchy. Expanded access correctly grants VIEW to all users. Admin permission implies edit/view. Parent component ACLs inherited by children. 23 new integration tests passing alongside existing 88 (111 total). ALL VERIFIED.
+**Verification:** All 7 ACL RPCs working. Permission enforcement verified: all RPCs require auth (PERMISSION_DENIED if missing x-user-id), ACL RPCs require ADMIN permission (bootstrap: first ACL entry allowed without perm check). Expanded access correctly grants VIEW to all users. Admin permission implies edit/view. Parent component ACLs inherited by children. 44 ACL integration tests passing (180 total across all test files). ALL VERIFIED.
 
 **Implementation Notes:**
 - Permission checks traverse the component hierarchy upward (child inherits parent ACLs).
-- The `x-user-id` header is extracted from gRPC metadata; absence means anonymous (allowed by default for gradual rollout).
+- The `x-user-id` header is extracted from gRPC metadata; absence returns PERMISSION_DENIED.
 - `expanded_access_enabled` on a component grants VIEW permission to all authenticated users.
 - `editable_comments_enabled` on a component allows COMMENTER role users to add comments.
 
@@ -552,22 +554,22 @@ header is absent).
 
 ## Future Phases (not yet planned in detail)
 
-### Phase 10: Saved Searches + Bookmark Groups
+### Phase 11: Saved Searches + Bookmark Groups
 - Saved search CRUD, execute, ACL.
 - Bookmark group CRUD with ordered hotlist/saved search refs.
 
-### Phase 11: Custom Fields + Templates
+### Phase 12: Custom Fields + Templates
 - Per-component custom field definitions.
 - Template CRUD, default template enforcement.
 - Custom field values on issues.
 
-### Phase 12: Notifications
+### Phase 13: Notifications
 - Edit classification triggers notification evaluation.
 - Per-role notification levels, per-issue overrides.
 - Read/unread tracking, star/mute.
 - Initially: log to stdout/file. Later: email dispatch.
 
-### Phase 13: Migration to PostgreSQL
+### Phase 14: Migration to PostgreSQL
 - Swap rusqlite for sqlx + PostgreSQL.
 - Schema migration scripts.
 - Existing functionality unchanged.

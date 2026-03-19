@@ -1,4 +1,4 @@
-<!-- agent-updated: 2026-03-14T12:00:00Z -->
+<!-- agent-updated: 2026-03-19T00:00:00Z -->
 
 # UI Architecture
 
@@ -18,7 +18,7 @@ Express API Proxy (server/index.ts, port 3001)
 Rust gRPC Server (tonic, port 50051)
   |
   v
-SQLite (prisma-rs)
+SQLite (Quiver ORM)
 ```
 
 Vite dev server proxies `/api` requests to the Express server, so the browser only
@@ -100,7 +100,7 @@ User action (form submit, button click)
 No real authentication. The LoginPage captures a user ID string, stored in Redux
 (`authSlice`). RTK Query's `prepareHeaders` attaches it as `x-user-id` header on
 every request. The Express proxy forwards it as gRPC metadata. The gRPC server uses
-it for permission checks (gradual rollout: missing header = anonymous = allowed).
+it for permission checks (missing header = PERMISSION_DENIED).
 
 ## Key Design Decisions
 

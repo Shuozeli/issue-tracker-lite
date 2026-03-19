@@ -1,8 +1,8 @@
-<!-- agent-updated: 2026-03-15T20:00:00Z -->
+<!-- agent-updated: 2026-03-19T00:00:00Z -->
 
 # Database Schema -- Reference Design
 
-SQLite schema for the Issue Tracker rebuild, managed by Quiver ORM (`schema.quiver`). All interactions must be wrapped in transactions (including reads, per project rules).
+Reference schema design for the Issue Tracker rebuild. Uses PostgreSQL syntax for clarity, but the actual implementation uses SQLite via Quiver ORM. The ground-truth schema is `schema.quiver` at the project root (13 models, SQLite types). All interactions must be wrapped in transactions (including reads, per project rules).
 
 ---
 

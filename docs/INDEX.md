@@ -1,4 +1,4 @@
-<!-- agent-updated: 2026-03-16T06:00:00Z -->
+<!-- agent-updated: 2026-03-19T00:00:00Z -->
 
 # Issue Tracker Lite -- Documentation Index
 
@@ -64,7 +64,7 @@ The server lives in `server/` within the workspace root. Key files:
 | Generated models | `server/src/db/row_mapping.rs` | Quiver-generated model structs + `TryFrom<&Row>` |
 | Services | `server/src/service/*.rs` | gRPC handlers: component, issue, comment, hotlist, search, event_log, acl |
 | Domain logic | `server/src/domain/*.rs` | Status machine, permissions engine, query parser |
-| Integration tests | `server/tests/` | 167 tests split across 9 files by service, each with isolated temp SQLite DB |
+| Integration tests | `server/tests/` | 180 tests split across 10 files by service, each with isolated temp SQLite DB |
 
 ## 6. CLI (Rust gRPC Client)
 
@@ -103,7 +103,7 @@ ui/
 
 ## 8. Demo System
 
-Two demo systems exist:
+Demo systems:
 
 | System | Path | Description |
 |---|---|---|
@@ -113,6 +113,7 @@ Two demo systems exist:
 | **Demo Console UI** | `ui/src/components/DemoConsole.tsx` | Built-in panel with toolbar buttons, log viewer (toggle: `Ctrl+\``) |
 
 Browser demo scenarios: quickstart, triage, lifecycle, comments, search, full.
+CLI demo pipelines: quickstart, hierarchy, hotlists, access_control, search, full_lifecycle, groups, security.
 
 ## 9. Crawler (Reference Data)
 
@@ -132,7 +133,7 @@ Browser demo scenarios: quickstart, triage, lifecycle, comments, search, full.
 ```bash
 # From workspace root
 DATABASE_URL="file:./dev.db" cargo run --bin issuetracker-server
-cargo run --bin issuetracker-cli -- ping
+cargo run --bin it -- ping
 ```
 
 ### Web UI
@@ -144,7 +145,7 @@ pnpm dev          # Starts Vite (5173) + Express proxy (3001)
 
 ### Tests
 ```bash
-cargo test -p issuetracker-server  # 167 gRPC integration tests (9 files)
+cargo test -p issuetracker-server  # 180 gRPC integration tests (10 files)
 cd ui && pnpm test:e2e            # Playwright E2E tests
 ```
 

@@ -1,4 +1,4 @@
-<!-- agent-updated: 2026-03-15T21:00:00Z -->
+<!-- agent-updated: 2026-03-19T00:00:00Z -->
 
 # Issue Tracker Lite
 
@@ -11,10 +11,11 @@ A rebuild of [Google Issue Tracker](https://developers.google.com/issue-tracker)
 - **Full issue lifecycle**: 11 statuses, auto-transitions, parent/child/blocking/duplicate relationships
 - **Search query language**: structured filters (`status:open priority:P0`), keyword search, pagination
 - **Group-based access control**: nested groups, permission inheritance up component tree
+- **Auth enforcement**: all RPCs require `x-user-id` header; ACL RPCs require ADMIN permission
 - **Event log**: append-only audit trail for all mutations
 - **CLI client**: full-featured `it` command for all operations
 - **React SPA**: 8 pages with RTK Query, Ant Design dark theme, built-in demo console
-- **167 integration tests** across 9 test files, each with isolated temp SQLite DB
+- **180 integration tests** across 10 test files, each with isolated temp SQLite DB
 
 ## Quick Start
 
@@ -49,7 +50,7 @@ pnpm dev    # Vite (5173) + Express proxy (3001)
 ### Tests
 
 ```bash
-cargo test -p issuetracker-server --tests   # 167 integration tests
+cargo test -p issuetracker-server --tests   # 180 integration tests
 cargo test -p issuetracker-server --test e2e # E2E tests (requires CLI binary built)
 cd ui && pnpm test:e2e                       # Playwright tests
 ```
@@ -76,6 +77,7 @@ issue-tracker-lite/
   schema.quiver              # Quiver ORM schema (13 models)
   proto/
     issuetracker/v1/         # gRPC service definitions (8 .proto files)
+    identity/v1/             # Group service proto (1 .proto file)
     identity/v1/             # Group service proto
   server/
     src/
@@ -94,12 +96,14 @@ issue-tracker-lite/
       hotlist_tests.rs       # 9 tests
       search_tests.rs        # 13 tests
       event_log_tests.rs     # 6 tests
-      acl_tests.rs           # 31 tests
+      acl_tests.rs           # 44 tests
       group_tests.rs         # 43 tests
       validation_tests.rs    # 11 tests
+      e2e.rs                 # 8 E2E tests
   cli/                       # CLI client (clap-based)
   demo/                      # Demo runner (in-process server + scenarios)
   identity/                  # Group/member management library
+  test-utils/                # Shared test fixtures (TestFixture, helpers)
   ui/                        # React SPA frontend
   crawler/                   # Google Issue Tracker docs crawler
   docs/
