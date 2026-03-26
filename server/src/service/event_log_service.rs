@@ -3,6 +3,7 @@ use tonic::{Request, Response, Status};
 
 use crate::db::row_mapping::EventLog;
 use crate::db::DbConn;
+use crate::domain::timestamp::parse_timestamp;
 use crate::domain::types::DomainError;
 
 use crate::proto::event_log_service_server::EventLogService;
@@ -22,19 +23,6 @@ fn event_log_to_proto(e: &crate::db::row_mapping::EventLog) -> ProtoEvent {
         entity_id: e.entity_id as i64,
         payload: e.payload.clone(),
     }
-}
-
-fn parse_timestamp(s: &str) -> Option<prost_types::Timestamp> {
-    chrono::DateTime::parse_from_rfc3339(s)
-        .or_else(|_| {
-            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f")
-                .map(|ndt| ndt.and_utc().fixed_offset())
-        })
-        .ok()
-        .map(|dt| prost_types::Timestamp {
-            seconds: dt.timestamp(),
-            nanos: dt.timestamp_subsec_nanos() as i32,
-        })
 }
 
 #[tonic::async_trait]

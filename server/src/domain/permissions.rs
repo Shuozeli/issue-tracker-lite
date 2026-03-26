@@ -174,12 +174,14 @@ pub fn identity_type_from_proto(val: i32) -> Result<String, DomainError> {
     }
 }
 
-pub fn identity_type_to_proto(s: &str) -> i32 {
+pub fn identity_type_to_proto(s: &str) -> Result<i32, DomainError> {
     match s {
-        "USER" => 1,
-        "GROUP" => 2,
-        "PUBLIC" => 3,
-        _ => 0,
+        "USER" => Ok(1),
+        "GROUP" => Ok(2),
+        "PUBLIC" => Ok(3),
+        _ => Err(DomainError::Internal(format!(
+            "unknown identity type string: {s}"
+        ))),
     }
 }
 
@@ -274,7 +276,12 @@ pub async fn check_component_permission_quiver<C: Connection>(
         };
         if matches {
             let perm_strings: Vec<String> =
-                serde_json::from_str(&acl.permissions).unwrap_or_default();
+                serde_json::from_str(&acl.permissions).map_err(|e| {
+                    DomainError::Internal(format!(
+                        "corrupt permissions JSON for ComponentAcl {}: {e}",
+                        acl.id
+                    ))
+                })?;
             let perms: Vec<ComponentPermission> = perm_strings
                 .iter()
                 .filter_map(|s| ComponentPermission::parse(s).ok())
@@ -406,7 +413,12 @@ pub async fn get_accessible_component_ids<C: Connection>(
         };
         if matches {
             let perm_strings: Vec<String> =
-                serde_json::from_str(&acl.permissions).unwrap_or_default();
+                serde_json::from_str(&acl.permissions).map_err(|e| {
+                    DomainError::Internal(format!(
+                        "corrupt permissions JSON for ComponentAcl {}: {e}",
+                        acl.id
+                    ))
+                })?;
             let perms: Vec<ComponentPermission> = perm_strings
                 .iter()
                 .filter_map(|s| ComponentPermission::parse(s).ok())

@@ -7,6 +7,7 @@ use crate::db::row_mapping::{Issue, IssueBlocking, IssueParent};
 use crate::db::DbConn;
 use crate::domain::permissions;
 use crate::domain::status_machine;
+use crate::domain::timestamp::parse_timestamp;
 use crate::domain::types::DomainError;
 use identity::IdentityProvider;
 use std::collections::HashSet;
@@ -101,19 +102,6 @@ fn str_to_proto_issue_type(s: &str) -> i32 {
         .unwrap_or(0)
 }
 
-fn parse_timestamp(s: &str) -> Option<prost_types::Timestamp> {
-    chrono::DateTime::parse_from_rfc3339(s)
-        .or_else(|_| {
-            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f")
-                .map(|ndt| ndt.and_utc().fixed_offset())
-        })
-        .ok()
-        .map(|dt| prost_types::Timestamp {
-            seconds: dt.timestamp(),
-            nanos: dt.timestamp_subsec_nanos() as i32,
-        })
-}
-
 pub fn issue_to_proto(issue: &Issue) -> ProtoIssue {
     ProtoIssue {
         issue_id: issue.id as i64,
@@ -142,27 +130,7 @@ pub fn issue_to_proto(issue: &Issue) -> ProtoIssue {
     }
 }
 
-async fn log_event<C: Connection>(
-    conn: &C,
-    event_type: &str,
-    entity_id: i32,
-    payload: &serde_json::Value,
-) -> Result<(), DomainError> {
-    let now = chrono::Utc::now().to_rfc3339();
-    let stmt = Query::table("EventLog")
-        .create()
-        .set("eventTime", Value::Text(now))
-        .set("eventType", Value::Text(event_type.to_string()))
-        .set("actor", Value::Text("system".to_string()))
-        .set("entityType", Value::Text("Issue".to_string()))
-        .set("entityId", Value::Int(entity_id as i64))
-        .set("payload", Value::Text(payload.to_string()))
-        .build();
-    conn.execute(&stmt)
-        .await
-        .map_err(|e| DomainError::Internal(e.to_string()))?;
-    Ok(())
-}
+use crate::domain::event_log::log_event;
 
 async fn validate_issue_exists<C: Connection>(
     conn: &C,
@@ -387,9 +355,12 @@ impl IssueService for IssueServiceImpl {
         }
 
         // Log event
+        let actor = user_id.as_deref().unwrap_or("system");
         log_event(
             &tx,
             "ISSUE_CREATED",
+            actor,
+            "Issue",
             issue.id,
             &json!({"title": issue.title, "component_id": issue.component_id}),
         )
@@ -764,9 +735,12 @@ impl IssueService for IssueServiceImpl {
         let issue = Issue::try_from(&fetch_row).map_err(DomainError::from)?;
 
         // Log event
+        let actor = user_id.as_deref().unwrap_or("system");
         log_event(
             &tx,
             "ISSUE_UPDATED",
+            actor,
+            "Issue",
             issue.id,
             &json!({"issue_id": req.issue_id, "modified_at": now}),
         )

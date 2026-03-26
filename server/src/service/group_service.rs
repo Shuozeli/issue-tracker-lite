@@ -5,6 +5,7 @@ use tonic::{Request, Response, Status};
 use identity::{IdentityError, IdentityProvider, MemberRole, MemberType};
 
 use crate::domain::permissions;
+use crate::domain::timestamp::parse_timestamp;
 use crate::identity_proto::group_service_server::GroupService;
 use crate::identity_proto::{
     AddMemberRequest, BatchAddMembersRequest, BatchAddMembersResponse, CreateGroupRequest,
@@ -28,19 +29,6 @@ fn identity_error_to_status(e: IdentityError) -> Status {
         IdentityError::PermissionDenied(msg) => Status::permission_denied(msg),
         IdentityError::Internal(msg) => Status::internal(msg),
     }
-}
-
-fn parse_timestamp(s: &str) -> Option<prost_types::Timestamp> {
-    chrono::DateTime::parse_from_rfc3339(s)
-        .or_else(|_| {
-            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f")
-                .map(|ndt| ndt.and_utc().fixed_offset())
-        })
-        .ok()
-        .map(|dt| prost_types::Timestamp {
-            seconds: dt.timestamp(),
-            nanos: dt.timestamp_subsec_nanos() as i32,
-        })
 }
 
 fn group_to_proto(g: &identity::Group) -> ProtoGroup {

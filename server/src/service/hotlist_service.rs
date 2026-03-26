@@ -8,6 +8,7 @@ use tonic::{Request, Response, Status};
 use crate::db::row_mapping::{Hotlist, HotlistIssue};
 use crate::db::DbConn;
 use crate::domain::permissions;
+use crate::domain::timestamp::parse_timestamp;
 use crate::domain::types::DomainError;
 
 use crate::proto::hotlist_service_server::HotlistService;
@@ -47,39 +48,7 @@ fn hotlist_issue_to_proto(hi: &HotlistIssue) -> ProtoHotlistIssue {
     }
 }
 
-fn parse_timestamp(s: &str) -> Option<prost_types::Timestamp> {
-    chrono::DateTime::parse_from_rfc3339(s)
-        .or_else(|_| {
-            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f")
-                .map(|ndt| ndt.and_utc().fixed_offset())
-        })
-        .ok()
-        .map(|dt| prost_types::Timestamp {
-            seconds: dt.timestamp(),
-            nanos: dt.timestamp_subsec_nanos() as i32,
-        })
-}
-
-async fn log_event<C: Connection>(
-    conn: &C,
-    event_type: &str,
-    entity_id: i32,
-    payload: &serde_json::Value,
-) -> Result<(), DomainError> {
-    let stmt = Query::table("EventLog")
-        .create()
-        .set("eventTime", Value::Text(chrono::Utc::now().to_rfc3339()))
-        .set("eventType", Value::Text(event_type.to_string()))
-        .set("actor", Value::Text("system".to_string()))
-        .set("entityType", Value::Text("Hotlist".to_string()))
-        .set("entityId", Value::Int(entity_id as i64))
-        .set("payload", Value::Text(payload.to_string()))
-        .build();
-    conn.execute(&stmt)
-        .await
-        .map_err(|e| DomainError::Internal(e.to_string()))?;
-    Ok(())
-}
+use crate::domain::event_log::log_event;
 
 async fn get_hotlist_by_id<C: Connection>(conn: &C, id: i32) -> Result<Hotlist, DomainError> {
     let stmt = Query::table("Hotlist")
@@ -158,7 +127,7 @@ impl HotlistService for HotlistServiceImpl {
             .create()
             .set("hotlistId", Value::Int(hotlist.id as i64))
             .set("identityType", Value::Text("USER".to_string()))
-            .set("identityValue", Value::Text(user_id))
+            .set("identityValue", Value::Text(user_id.clone()))
             .set("permission", Value::Text("HOTLIST_ADMIN".to_string()))
             .set("createdAt", now)
             .build();
@@ -169,6 +138,8 @@ impl HotlistService for HotlistServiceImpl {
         log_event(
             &tx,
             "HOTLIST_CREATED",
+            &user_id,
+            "Hotlist",
             hotlist.id,
             &serde_json::json!({"name": hotlist.name}),
         )
@@ -508,7 +479,7 @@ impl HotlistService for HotlistServiceImpl {
             .set("hotlistId", Value::Int(req.hotlist_id))
             .set("issueId", Value::Int(req.issue_id))
             .set("position", Value::Int(next_position as i64))
-            .set("addedBy", Value::Text(user_id))
+            .set("addedBy", Value::Text(user_id.clone()))
             .set("addedAt", now)
             .build();
         tx.execute(&create_stmt)
@@ -525,6 +496,8 @@ impl HotlistService for HotlistServiceImpl {
         log_event(
             &tx,
             "HOTLIST_ISSUE_ADDED",
+            &user_id,
+            "Hotlist",
             req.hotlist_id as i32,
             &serde_json::json!({"issueId": req.issue_id}),
         )
@@ -601,9 +574,12 @@ impl HotlistService for HotlistServiceImpl {
             .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
+        let actor = user_id.as_deref().unwrap_or("system");
         log_event(
             &tx,
             "HOTLIST_ISSUE_REMOVED",
+            actor,
+            "Hotlist",
             req.hotlist_id as i32,
             &serde_json::json!({"issueId": req.issue_id}),
         )

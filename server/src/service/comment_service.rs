@@ -8,6 +8,7 @@ use tonic::{Request, Response, Status};
 use crate::db::row_mapping::{Comment, CommentRevision, Issue};
 use crate::db::DbConn;
 use crate::domain::permissions;
+use crate::domain::timestamp::parse_timestamp;
 use crate::domain::types::DomainError;
 use crate::proto::comment_service_server::CommentService;
 use crate::proto::{
@@ -19,19 +20,6 @@ use crate::proto::{
 pub struct CommentServiceImpl {
     pub db: DbConn,
     pub identity: Arc<dyn IdentityProvider>,
-}
-
-fn parse_timestamp(s: &str) -> Option<prost_types::Timestamp> {
-    chrono::DateTime::parse_from_rfc3339(s)
-        .or_else(|_| {
-            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f")
-                .map(|ndt| ndt.and_utc().fixed_offset())
-        })
-        .ok()
-        .map(|dt| prost_types::Timestamp {
-            seconds: dt.timestamp(),
-            nanos: dt.timestamp_subsec_nanos() as i32,
-        })
 }
 
 fn comment_to_proto(c: &Comment) -> ProtoComment {
@@ -102,27 +90,7 @@ async fn count_revisions<C: Connection>(conn: &C, comment_id: i32) -> Result<i32
     Ok(rows.len() as i32)
 }
 
-async fn log_event<C: Connection>(
-    conn: &C,
-    event_type: &str,
-    actor: &str,
-    entity_id: i32,
-    payload: &serde_json::Value,
-) -> Result<(), DomainError> {
-    let stmt = Query::table("EventLog")
-        .create()
-        .set("eventTime", Value::Text(chrono::Utc::now().to_rfc3339()))
-        .set("eventType", Value::Text(event_type.to_string()))
-        .set("actor", Value::Text(actor.to_string()))
-        .set("entityType", Value::Text("Comment".to_string()))
-        .set("entityId", Value::Int(entity_id as i64))
-        .set("payload", Value::Text(payload.to_string()))
-        .build();
-    conn.execute(&stmt)
-        .await
-        .map_err(|e| DomainError::Internal(e.to_string()))?;
-    Ok(())
-}
+use crate::domain::event_log::log_event;
 
 #[tonic::async_trait]
 impl CommentService for CommentServiceImpl {
@@ -193,6 +161,7 @@ impl CommentService for CommentServiceImpl {
             &tx,
             "COMMENT_ADDED",
             actor,
+            "Comment",
             comment.issue_id,
             &serde_json::json!({"comment_id": comment.id}),
         )
@@ -386,6 +355,7 @@ impl CommentService for CommentServiceImpl {
             &tx,
             "COMMENT_EDITED",
             actor,
+            "Comment",
             comment.issue_id,
             &serde_json::json!({"comment_id": comment.id, "revision_count": rev_count}),
         )
@@ -495,6 +465,7 @@ impl CommentService for CommentServiceImpl {
             &tx,
             "COMMENT_HIDDEN",
             actor,
+            "Comment",
             comment.issue_id,
             &serde_json::json!({"comment_id": comment.id}),
         )

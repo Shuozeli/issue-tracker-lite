@@ -10,6 +10,7 @@ use crate::db::DbConn;
 use crate::domain::permissions::{
     self, expand_permissions, expanded_access_permission, ComponentPermission,
 };
+use crate::domain::timestamp::parse_timestamp;
 use crate::domain::types::DomainError;
 use crate::proto::acl_service_server::AclService;
 use crate::proto::{
@@ -25,44 +26,36 @@ pub struct AclServiceImpl {
     pub identity: Arc<dyn IdentityProvider>,
 }
 
-fn parse_timestamp(s: &str) -> Option<prost_types::Timestamp> {
-    chrono::DateTime::parse_from_rfc3339(s)
-        .or_else(|_| {
-            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f")
-                .map(|ndt| ndt.and_utc().fixed_offset())
-        })
-        .ok()
-        .map(|dt| prost_types::Timestamp {
-            seconds: dt.timestamp(),
-            nanos: dt.timestamp_subsec_nanos() as i32,
-        })
-}
-
-fn component_acl_to_proto(acl: &ComponentAcl) -> ComponentAclEntry {
-    let perms_json: Vec<String> = serde_json::from_str(&acl.permissions).unwrap_or_default();
+fn component_acl_to_proto(acl: &ComponentAcl) -> Result<ComponentAclEntry, DomainError> {
+    let perms_json: Vec<String> = serde_json::from_str(&acl.permissions).map_err(|e| {
+        DomainError::Internal(format!(
+            "corrupt permissions JSON for ComponentAcl {}: {e}",
+            acl.id
+        ))
+    })?;
     let proto_perms: Vec<i32> = perms_json
         .iter()
         .filter_map(|s| ComponentPermission::parse(s).ok())
         .map(|p| p.to_proto())
         .collect();
 
-    ComponentAclEntry {
+    Ok(ComponentAclEntry {
         component_id: acl.component_id as i64,
-        identity_type: permissions::identity_type_to_proto(&acl.identity_type),
+        identity_type: permissions::identity_type_to_proto(&acl.identity_type)?,
         identity_value: acl.identity_value.clone(),
         permissions: proto_perms,
         create_time: parse_timestamp(&acl.created_at),
-    }
+    })
 }
 
-fn hotlist_acl_to_proto(acl: &HotlistAcl) -> HotlistAclEntry {
-    HotlistAclEntry {
+fn hotlist_acl_to_proto(acl: &HotlistAcl) -> Result<HotlistAclEntry, DomainError> {
+    Ok(HotlistAclEntry {
         hotlist_id: acl.hotlist_id as i64,
-        identity_type: permissions::identity_type_to_proto(&acl.identity_type),
+        identity_type: permissions::identity_type_to_proto(&acl.identity_type)?,
         identity_value: acl.identity_value.clone(),
         permission: permissions::hotlist_permission_to_proto(&acl.permission),
         create_time: parse_timestamp(&acl.created_at),
-    }
+    })
 }
 
 impl AclServiceImpl {
@@ -277,7 +270,7 @@ impl AclService for AclServiceImpl {
             .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-        Ok(Response::new(component_acl_to_proto(&acl)))
+        Ok(Response::new(component_acl_to_proto(&acl)?))
     }
 
     async fn get_component_acl(
@@ -332,7 +325,10 @@ impl AclService for AclServiceImpl {
             .map(|r| ComponentAcl::try_from(r).map_err(DomainError::from))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let entries: Vec<ComponentAclEntry> = acls.iter().map(component_acl_to_proto).collect();
+        let entries: Vec<ComponentAclEntry> = acls
+            .iter()
+            .map(component_acl_to_proto)
+            .collect::<Result<Vec<_>, _>>()?;
 
         tx.commit()
             .await
@@ -534,7 +530,7 @@ impl AclService for AclServiceImpl {
             .await
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-        Ok(Response::new(hotlist_acl_to_proto(&acl)))
+        Ok(Response::new(hotlist_acl_to_proto(&acl)?))
     }
 
     async fn get_hotlist_acl(
@@ -588,7 +584,7 @@ impl AclService for AclServiceImpl {
             .map(|r| HotlistAcl::try_from(r).map_err(DomainError::from))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let entries: Vec<HotlistAclEntry> = acls.iter().map(hotlist_acl_to_proto).collect();
+        let entries: Vec<HotlistAclEntry> = acls.iter().map(|a| hotlist_acl_to_proto(a)).collect::<Result<Vec<_>, _>>()?;
 
         tx.commit()
             .await
@@ -744,7 +740,12 @@ impl AclService for AclServiceImpl {
             if matches {
                 has_acl_match = true;
                 let perm_strings: Vec<String> =
-                    serde_json::from_str(&acl.permissions).unwrap_or_default();
+                    serde_json::from_str(&acl.permissions).map_err(|e| {
+                        DomainError::Internal(format!(
+                            "corrupt permissions JSON for ComponentAcl {}: {e}",
+                            acl.id
+                        ))
+                    })?;
                 let perms: Vec<ComponentPermission> = perm_strings
                     .iter()
                     .filter_map(|s| ComponentPermission::parse(s).ok())
