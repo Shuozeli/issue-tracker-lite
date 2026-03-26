@@ -584,7 +584,10 @@ impl AclService for AclServiceImpl {
             .map(|r| HotlistAcl::try_from(r).map_err(DomainError::from))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let entries: Vec<HotlistAclEntry> = acls.iter().map(|a| hotlist_acl_to_proto(a)).collect::<Result<Vec<_>, _>>()?;
+        let entries: Vec<HotlistAclEntry> = acls
+            .iter()
+            .map(|a| hotlist_acl_to_proto(a))
+            .collect::<Result<Vec<_>, _>>()?;
 
         tx.commit()
             .await

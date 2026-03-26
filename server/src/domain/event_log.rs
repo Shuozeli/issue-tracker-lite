@@ -2,7 +2,6 @@
 ///
 /// All services should use this function instead of defining their own
 /// `log_event` copies.
-
 use quiver_driver_core::{Connection, Value};
 use quiver_query::Query;
 
