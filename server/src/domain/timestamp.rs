@@ -1,7 +1,7 @@
-/// Shared timestamp parsing utilities.
-///
-/// All services should use these functions instead of defining their own
-/// `parse_timestamp` copies.
+//! Shared timestamp parsing utilities.
+//!
+//! All services should use these functions instead of defining their own
+//! `parse_timestamp` copies.
 
 /// Parse a DB timestamp string (RFC 3339 or `YYYY-MM-DD HH:MM:SS.f`) into a
 /// prost `Timestamp`.  Returns `None` for unparseable input.

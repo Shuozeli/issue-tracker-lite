@@ -586,7 +586,7 @@ impl AclService for AclServiceImpl {
 
         let entries: Vec<HotlistAclEntry> = acls
             .iter()
-            .map(|a| hotlist_acl_to_proto(a))
+            .map(hotlist_acl_to_proto)
             .collect::<Result<Vec<_>, _>>()?;
 
         tx.commit()
