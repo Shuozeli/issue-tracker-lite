@@ -192,24 +192,19 @@ pub fn parse_query(input: &str) -> ParsedQuery {
     ParsedQuery { filters, keywords }
 }
 
-/// Resolve special status values: "open" -> list of open statuses, "closed" -> list of closed
+/// Resolve special status values: "open" -> list of open statuses, "closed" -> list of closed.
+/// Uses the canonical lists from `status_machine` as the single source of truth.
 pub fn resolve_status_value(value: &str) -> Vec<String> {
+    use crate::domain::status_machine;
     match value.to_lowercase().as_str() {
-        "open" => vec![
-            "NEW".to_string(),
-            "ASSIGNED".to_string(),
-            "IN_PROGRESS".to_string(),
-            "INACTIVE".to_string(),
-        ],
-        "closed" => vec![
-            "FIXED".to_string(),
-            "FIXED_VERIFIED".to_string(),
-            "WONT_FIX_INFEASIBLE".to_string(),
-            "WONT_FIX_NOT_REPRODUCIBLE".to_string(),
-            "WONT_FIX_OBSOLETE".to_string(),
-            "WONT_FIX_INTENDED_BEHAVIOR".to_string(),
-            "DUPLICATE".to_string(),
-        ],
+        "open" => status_machine::OPEN_STATUSES
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
+        "closed" => status_machine::CLOSED_STATUSES
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
         other => vec![other.to_uppercase()],
     }
 }

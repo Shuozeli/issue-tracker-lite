@@ -8,7 +8,7 @@ use crate::db::DbConn;
 use crate::domain::permissions;
 use crate::domain::status_machine;
 use crate::domain::timestamp::parse_timestamp;
-use crate::domain::types::DomainError;
+use crate::domain::types::{clamp_page_size, DomainError};
 use identity::IdentityProvider;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -237,14 +237,8 @@ impl IssueService for IssueServiceImpl {
         let issue_type = proto_issue_type_to_str(req.r#type)?;
         let severity = proto_severity_to_str(req.severity.unwrap_or(0))?;
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -379,14 +373,8 @@ impl IssueService for IssueServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -439,20 +427,10 @@ impl IssueService for IssueServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let page_size = if req.page_size > 0 {
-            req.page_size.min(100)
-        } else {
-            50
-        };
+        let page_size = clamp_page_size(req.page_size);
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -474,22 +452,15 @@ impl IssueService for IssueServiceImpl {
         )
         .await?;
 
-        // Build status filter
-        let open_statuses = vec![
-            Value::Text("NEW".to_string()),
-            Value::Text("ASSIGNED".to_string()),
-            Value::Text("IN_PROGRESS".to_string()),
-            Value::Text("INACTIVE".to_string()),
-        ];
-        let closed_statuses = vec![
-            Value::Text("FIXED".to_string()),
-            Value::Text("FIXED_VERIFIED".to_string()),
-            Value::Text("WONT_FIX_INFEASIBLE".to_string()),
-            Value::Text("WONT_FIX_NOT_REPRODUCIBLE".to_string()),
-            Value::Text("WONT_FIX_OBSOLETE".to_string()),
-            Value::Text("WONT_FIX_INTENDED_BEHAVIOR".to_string()),
-            Value::Text("DUPLICATE".to_string()),
-        ];
+        // Build status filter (using canonical lists from status_machine)
+        let open_statuses: Vec<Value> = status_machine::OPEN_STATUSES
+            .iter()
+            .map(|s| Value::Text(s.to_string()))
+            .collect();
+        let closed_statuses: Vec<Value> = status_machine::CLOSED_STATUSES
+            .iter()
+            .map(|s| Value::Text(s.to_string()))
+            .collect();
 
         let component_filter = Filter::eq("componentId", Value::Int(req.component_id));
         let status_filter = match req.status_filter.as_str() {
@@ -575,14 +546,8 @@ impl IssueService for IssueServiceImpl {
             None => None,
         };
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -767,14 +732,8 @@ impl IssueService for IssueServiceImpl {
             );
         }
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -849,14 +808,8 @@ impl IssueService for IssueServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -923,14 +876,8 @@ impl IssueService for IssueServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -989,14 +936,8 @@ impl IssueService for IssueServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -1061,14 +1002,8 @@ impl IssueService for IssueServiceImpl {
             );
         }
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -1123,14 +1058,8 @@ impl IssueService for IssueServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -1203,14 +1132,8 @@ impl IssueService for IssueServiceImpl {
             .into());
         }
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -1234,6 +1157,9 @@ impl IssueService for IssueServiceImpl {
             &user_groups,
         )
         .await?;
+
+        // Validate status transition before marking as duplicate
+        status_machine::validate_transition(&issue.status, "DUPLICATE")?;
 
         // Set issue status to DUPLICATE and store duplicate_of
         let now = chrono::Utc::now().to_rfc3339();
@@ -1292,14 +1218,8 @@ impl IssueService for IssueServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db

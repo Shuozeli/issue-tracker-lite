@@ -9,7 +9,7 @@ use crate::db::row_mapping::{Component, HotlistIssue, Issue};
 use crate::db::DbConn;
 use crate::domain::permissions;
 use crate::domain::query_parser::{self, FilterField, FilterOp};
-use crate::domain::types::DomainError;
+use crate::domain::types::{clamp_page_size, DomainError};
 use crate::service::issue_service::issue_to_proto;
 
 use crate::proto::search_service_server::SearchService;
@@ -253,11 +253,7 @@ impl SearchService for SearchServiceImpl {
 
         let parsed = query_parser::parse_query(&req.query);
 
-        let page_size = if req.page_size > 0 {
-            req.page_size.min(100)
-        } else {
-            50
-        };
+        let page_size = clamp_page_size(req.page_size);
 
         // Determine order
         let order_field = match req.order_by.as_str() {
@@ -271,14 +267,8 @@ impl SearchService for SearchServiceImpl {
             _ => "DESC",
         };
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db

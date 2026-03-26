@@ -842,13 +842,9 @@ impl IdentityProvider for SqliteIdentityProvider {
             }
 
             // Skip duplicates silently in batch mode
-            if Self::get_member_row(&tx, group.id, *member_type, member_value)
-                .await?
-                .is_some()
+            if let Some(existing) =
+                Self::get_member_row(&tx, group.id, *member_type, member_value).await?
             {
-                let existing = Self::get_member_row(&tx, group.id, *member_type, member_value)
-                    .await?
-                    .unwrap();
                 result.push(existing);
                 continue;
             }

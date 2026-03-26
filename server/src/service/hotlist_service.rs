@@ -7,9 +7,9 @@ use tonic::{Request, Response, Status};
 
 use crate::db::row_mapping::{Hotlist, HotlistIssue};
 use crate::db::DbConn;
-use crate::domain::permissions;
+use crate::domain::permissions::{self, HotlistPermission};
 use crate::domain::timestamp::parse_timestamp;
-use crate::domain::types::DomainError;
+use crate::domain::types::{clamp_page_size, DomainError};
 
 use crate::proto::hotlist_service_server::HotlistService;
 use crate::proto::{
@@ -159,14 +159,8 @@ impl HotlistService for HotlistServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -182,7 +176,7 @@ impl HotlistService for HotlistServiceImpl {
             &tx,
             req.hotlist_id,
             user_id.as_deref(),
-            "HOTLIST_VIEW",
+            HotlistPermission::View,
             &user_groups,
         )
         .await?;
@@ -203,20 +197,10 @@ impl HotlistService for HotlistServiceImpl {
     ) -> Result<Response<ListHotlistsResponse>, Status> {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
-        let page_size = if req.page_size > 0 {
-            req.page_size.min(100)
-        } else {
-            50
-        };
+        let page_size = clamp_page_size(req.page_size);
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut q = Query::table("Hotlist").find_many();
 
@@ -257,7 +241,7 @@ impl HotlistService for HotlistServiceImpl {
         let accessible_ids = permissions::get_accessible_hotlist_ids(
             &tx,
             user_id.as_deref(),
-            "HOTLIST_VIEW",
+            HotlistPermission::View,
             &user_groups,
         )
         .await?;
@@ -322,14 +306,8 @@ impl HotlistService for HotlistServiceImpl {
             }
         }
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -345,7 +323,7 @@ impl HotlistService for HotlistServiceImpl {
             &tx,
             req.hotlist_id,
             user_id.as_deref(),
-            "HOTLIST_ADMIN",
+            HotlistPermission::Admin,
             &user_groups,
         )
         .await?;
@@ -394,11 +372,9 @@ impl HotlistService for HotlistServiceImpl {
         let user_id = user_id
             .ok_or_else(|| DomainError::PermissionDenied("authentication required".to_string()))?;
 
-        let user_groups = self
-            .identity
-            .resolve_user_groups(&user_id)
-            .await
-            .unwrap_or_default();
+        let user_id_opt = Some(user_id.clone());
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id_opt).await?;
 
         let mut conn = self
             .db
@@ -414,7 +390,7 @@ impl HotlistService for HotlistServiceImpl {
             &tx,
             req.hotlist_id,
             Some(&user_id),
-            "HOTLIST_VIEW_APPEND",
+            HotlistPermission::ViewAppend,
             &user_groups,
         )
         .await?;
@@ -517,14 +493,8 @@ impl HotlistService for HotlistServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -540,7 +510,7 @@ impl HotlistService for HotlistServiceImpl {
             &tx,
             req.hotlist_id,
             user_id.as_deref(),
-            "HOTLIST_VIEW_APPEND",
+            HotlistPermission::ViewAppend,
             &user_groups,
         )
         .await?;
@@ -599,14 +569,8 @@ impl HotlistService for HotlistServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -622,7 +586,7 @@ impl HotlistService for HotlistServiceImpl {
             &tx,
             req.hotlist_id,
             user_id.as_deref(),
-            "HOTLIST_VIEW",
+            HotlistPermission::View,
             &user_groups,
         )
         .await?;
@@ -661,14 +625,8 @@ impl HotlistService for HotlistServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -684,7 +642,7 @@ impl HotlistService for HotlistServiceImpl {
             &tx,
             req.hotlist_id,
             user_id.as_deref(),
-            "HOTLIST_ADMIN",
+            HotlistPermission::Admin,
             &user_groups,
         )
         .await?;

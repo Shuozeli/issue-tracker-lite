@@ -33,6 +33,15 @@ impl From<quiver_error::QuiverError> for DomainError {
     }
 }
 
+/// Clamp a requested page size to the allowed range [1, 100], defaulting to 50.
+pub fn clamp_page_size(requested: i32) -> i32 {
+    if requested > 0 {
+        requested.min(100)
+    } else {
+        50
+    }
+}
+
 impl From<DomainError> for tonic::Status {
     fn from(err: DomainError) -> Self {
         match &err {

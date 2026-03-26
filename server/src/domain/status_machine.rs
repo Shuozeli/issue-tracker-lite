@@ -1,7 +1,7 @@
 use crate::domain::types::DomainError;
 
-const OPEN_STATUSES: &[&str] = &["NEW", "ASSIGNED", "IN_PROGRESS", "INACTIVE"];
-const CLOSED_STATUSES: &[&str] = &[
+pub const OPEN_STATUSES: &[&str] = &["NEW", "ASSIGNED", "IN_PROGRESS", "INACTIVE"];
+pub const CLOSED_STATUSES: &[&str] = &[
     "FIXED",
     "FIXED_VERIFIED",
     "WONT_FIX_INFEASIBLE",

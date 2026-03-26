@@ -8,7 +8,7 @@ use tonic::{Request, Response, Status};
 use crate::db::row_mapping::{Component, ComponentAcl, HotlistAcl, Issue};
 use crate::db::DbConn;
 use crate::domain::permissions::{
-    self, expand_permissions, expanded_access_permission, ComponentPermission,
+    self, expand_permissions, expanded_access_permission, ComponentPermission, HotlistPermission,
 };
 use crate::domain::timestamp::parse_timestamp;
 use crate::domain::types::DomainError;
@@ -49,11 +49,12 @@ fn component_acl_to_proto(acl: &ComponentAcl) -> Result<ComponentAclEntry, Domai
 }
 
 fn hotlist_acl_to_proto(acl: &HotlistAcl) -> Result<HotlistAclEntry, DomainError> {
+    let perm = HotlistPermission::parse(&acl.permission)?;
     Ok(HotlistAclEntry {
         hotlist_id: acl.hotlist_id as i64,
         identity_type: permissions::identity_type_to_proto(&acl.identity_type)?,
         identity_value: acl.identity_value.clone(),
-        permission: permissions::hotlist_permission_to_proto(&acl.permission),
+        permission: perm.to_proto(),
         create_time: parse_timestamp(&acl.created_at),
     })
 }
@@ -165,14 +166,8 @@ impl AclService for AclServiceImpl {
         let perms_json = serde_json::to_string(&perm_strings)
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -280,14 +275,8 @@ impl AclService for AclServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -346,14 +335,8 @@ impl AclService for AclServiceImpl {
 
         let identity_type = permissions::identity_type_from_proto(req.identity_type)?;
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -419,7 +402,7 @@ impl AclService for AclServiceImpl {
         let req = request.into_inner();
 
         let identity_type = permissions::identity_type_from_proto(req.identity_type)?;
-        let permission = permissions::hotlist_permission_from_proto(req.permission)?;
+        let permission = HotlistPermission::from_proto(req.permission)?;
 
         if req.identity_value.trim().is_empty() {
             return Err(DomainError::InvalidArgument(
@@ -428,14 +411,8 @@ impl AclService for AclServiceImpl {
             .into());
         }
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -456,7 +433,7 @@ impl AclService for AclServiceImpl {
                 &tx,
                 req.hotlist_id,
                 user_id.as_deref(),
-                "HOTLIST_ADMIN",
+                HotlistPermission::Admin,
                 &user_groups,
             )
             .await?;
@@ -487,7 +464,7 @@ impl AclService for AclServiceImpl {
             let existing_acl = HotlistAcl::try_from(&row).map_err(DomainError::from)?;
             let update_stmt = Query::table("HotlistAcl")
                 .update()
-                .set("permission", Value::Text(permission.clone()))
+                .set("permission", Value::Text(permission.as_str().to_string()))
                 .filter(Filter::eq("id", Value::Int(existing_acl.id as i64)))
                 .build();
             tx.execute(&update_stmt)
@@ -510,7 +487,7 @@ impl AclService for AclServiceImpl {
                 .set("hotlistId", Value::Int(req.hotlist_id))
                 .set("identityType", Value::Text(identity_type.clone()))
                 .set("identityValue", Value::Text(req.identity_value.clone()))
-                .set("permission", Value::Text(permission.clone()))
+                .set("permission", Value::Text(permission.as_str().to_string()))
                 .set("createdAt", now)
                 .build();
             tx.execute(&create_stmt)
@@ -540,14 +517,8 @@ impl AclService for AclServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -565,7 +536,7 @@ impl AclService for AclServiceImpl {
             &tx,
             req.hotlist_id,
             user_id.as_deref(),
-            "HOTLIST_ADMIN",
+            HotlistPermission::Admin,
             &user_groups,
         )
         .await?;
@@ -605,14 +576,8 @@ impl AclService for AclServiceImpl {
 
         let identity_type = permissions::identity_type_from_proto(req.identity_type)?;
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -630,7 +595,7 @@ impl AclService for AclServiceImpl {
             &tx,
             req.hotlist_id,
             user_id.as_deref(),
-            "HOTLIST_ADMIN",
+            HotlistPermission::Admin,
             &user_groups,
         )
         .await?;
@@ -675,14 +640,8 @@ impl AclService for AclServiceImpl {
         let user_id = permissions::extract_user_id(&request);
         let req = request.into_inner();
 
-        let user_groups = match user_id.as_deref() {
-            Some(uid) => self
-                .identity
-                .resolve_user_groups(uid)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
+        let user_groups =
+            permissions::resolve_user_groups(self.identity.as_ref(), &user_id).await?;
 
         let mut conn = self
             .db
@@ -712,7 +671,9 @@ impl AclService for AclServiceImpl {
             .identity
             .resolve_user_groups(&req.user_id)
             .await
-            .unwrap_or_default();
+            .map_err(|e| {
+                DomainError::Internal(format!("failed to resolve target user groups: {e}"))
+            })?;
 
         // Step 1: Check component ACL for direct match
         let acl_stmt = Query::table("ComponentAcl")

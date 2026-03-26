@@ -4,7 +4,7 @@ use tonic::{Request, Response, Status};
 use crate::db::row_mapping::EventLog;
 use crate::db::DbConn;
 use crate::domain::timestamp::parse_timestamp;
-use crate::domain::types::DomainError;
+use crate::domain::types::{clamp_page_size, DomainError};
 
 use crate::proto::event_log_service_server::EventLogService;
 use crate::proto::{Event as ProtoEvent, ListEventsRequest, ListEventsResponse};
@@ -33,11 +33,7 @@ impl EventLogService for EventLogServiceImpl {
     ) -> Result<Response<ListEventsResponse>, Status> {
         let req = request.into_inner();
 
-        let page_size = if req.page_size > 0 {
-            req.page_size.min(100)
-        } else {
-            50
-        };
+        let page_size = clamp_page_size(req.page_size);
 
         let mut conditions: Vec<String> = Vec::new();
         let mut params: Vec<Value> = Vec::new();
@@ -64,14 +60,18 @@ impl EventLogService for EventLogServiceImpl {
 
         if let Some(since) = req.since {
             let dt = chrono::DateTime::from_timestamp(since.seconds, since.nanos as u32)
-                .unwrap_or_default();
+                .ok_or_else(|| {
+                    DomainError::InvalidArgument("invalid 'since' timestamp".to_string())
+                })?;
             conditions.push("eventTime >= ?".to_string());
             params.push(Value::Text(dt.to_rfc3339()));
         }
 
         if let Some(until) = req.until {
             let dt = chrono::DateTime::from_timestamp(until.seconds, until.nanos as u32)
-                .unwrap_or_default();
+                .ok_or_else(|| {
+                    DomainError::InvalidArgument("invalid 'until' timestamp".to_string())
+                })?;
             conditions.push("eventTime <= ?".to_string());
             params.push(Value::Text(dt.to_rfc3339()));
         }

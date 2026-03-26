@@ -185,34 +185,60 @@ pub fn identity_type_to_proto(s: &str) -> Result<i32, DomainError> {
     }
 }
 
-/// Hotlist permission helpers.
-pub fn hotlist_permission_from_proto(val: i32) -> Result<String, DomainError> {
-    match val {
-        1 => Ok("HOTLIST_VIEW".to_string()),
-        2 => Ok("HOTLIST_VIEW_APPEND".to_string()),
-        3 => Ok("HOTLIST_ADMIN".to_string()),
-        _ => Err(DomainError::InvalidArgument(format!(
-            "unknown hotlist permission value: {val}"
-        ))),
-    }
+/// Hotlist-level permissions as a proper enum (parallel to ComponentPermission).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HotlistPermission {
+    View,
+    ViewAppend,
+    Admin,
 }
 
-pub fn hotlist_permission_to_proto(s: &str) -> i32 {
-    match s {
-        "HOTLIST_VIEW" => 1,
-        "HOTLIST_VIEW_APPEND" => 2,
-        "HOTLIST_ADMIN" => 3,
-        _ => 0,
+impl HotlistPermission {
+    pub fn parse(s: &str) -> Result<Self, DomainError> {
+        match s {
+            "HOTLIST_VIEW" => Ok(Self::View),
+            "HOTLIST_VIEW_APPEND" => Ok(Self::ViewAppend),
+            "HOTLIST_ADMIN" => Ok(Self::Admin),
+            _ => Err(DomainError::InvalidArgument(format!(
+                "unknown hotlist permission: {s}"
+            ))),
+        }
     }
-}
 
-/// Check if a hotlist permission implies another.
-pub fn hotlist_permission_implies(held: &str, required: &str) -> bool {
-    match (held, required) {
-        ("HOTLIST_ADMIN", _) => true,
-        ("HOTLIST_VIEW_APPEND", "HOTLIST_VIEW") => true,
-        ("HOTLIST_VIEW_APPEND", "HOTLIST_VIEW_APPEND") => true,
-        (a, b) => a == b,
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::View => "HOTLIST_VIEW",
+            Self::ViewAppend => "HOTLIST_VIEW_APPEND",
+            Self::Admin => "HOTLIST_ADMIN",
+        }
+    }
+
+    pub fn from_proto(val: i32) -> Result<Self, DomainError> {
+        match val {
+            1 => Ok(Self::View),
+            2 => Ok(Self::ViewAppend),
+            3 => Ok(Self::Admin),
+            _ => Err(DomainError::InvalidArgument(format!(
+                "unknown hotlist permission value: {val}"
+            ))),
+        }
+    }
+
+    pub fn to_proto(&self) -> i32 {
+        match self {
+            Self::View => 1,
+            Self::ViewAppend => 2,
+            Self::Admin => 3,
+        }
+    }
+
+    /// Check if this permission implies `required`.
+    pub fn implies(&self, required: HotlistPermission) -> bool {
+        match self {
+            Self::Admin => true,
+            Self::ViewAppend => matches!(required, Self::View | Self::ViewAppend),
+            Self::View => matches!(required, Self::View),
+        }
     }
 }
 
@@ -234,6 +260,21 @@ pub fn extract_user_id<T>(request: &Request<T>) -> Option<String> {
                 .all(|c| c.is_alphanumeric() || matches!(c, '@' | '-' | '_' | '.' | '+'))
         })
         .map(|s| s.to_string())
+}
+
+/// Resolve the user's groups from the identity provider, propagating errors
+/// instead of silently falling back to an empty list.
+pub async fn resolve_user_groups(
+    identity: &dyn identity::IdentityProvider,
+    user_id: &Option<String>,
+) -> Result<Vec<String>, DomainError> {
+    match user_id.as_deref() {
+        Some(uid) if !uid.is_empty() => identity
+            .resolve_user_groups(uid)
+            .await
+            .map_err(|e| DomainError::Internal(format!("failed to resolve user groups: {e}"))),
+        _ => Ok(vec![]),
+    }
 }
 
 /// Check that the caller has the required component permission.
@@ -343,7 +384,7 @@ pub async fn check_hotlist_permission_quiver<C: Connection>(
     conn: &C,
     hotlist_id: i64,
     user_id: Option<&str>,
-    required: &str,
+    required: HotlistPermission,
     user_groups: &[String],
 ) -> Result<(), DomainError> {
     let user_id = match user_id {
@@ -372,8 +413,11 @@ pub async fn check_hotlist_permission_quiver<C: Connection>(
             "PUBLIC" => true,
             _ => false,
         };
-        if matches && hotlist_permission_implies(&acl.permission, required) {
-            return Ok(());
+        if matches {
+            let held = HotlistPermission::parse(&acl.permission)?;
+            if held.implies(required) {
+                return Ok(());
+            }
         }
     }
 
@@ -437,7 +481,7 @@ pub async fn get_accessible_component_ids<C: Connection>(
 pub async fn get_accessible_hotlist_ids<C: Connection>(
     conn: &C,
     user_id: Option<&str>,
-    required: &str,
+    required: HotlistPermission,
     user_groups: &[String],
 ) -> Result<Vec<i64>, DomainError> {
     let user_id = match user_id {
@@ -461,8 +505,11 @@ pub async fn get_accessible_hotlist_ids<C: Connection>(
             "PUBLIC" => true,
             _ => false,
         };
-        if matches && hotlist_permission_implies(&acl.permission, required) {
-            accessible.insert(acl.hotlist_id as i64);
+        if matches {
+            let held = HotlistPermission::parse(&acl.permission)?;
+            if held.implies(required) {
+                accessible.insert(acl.hotlist_id as i64);
+            }
         }
     }
 
@@ -521,20 +568,11 @@ mod tests {
 
     #[test]
     fn test_hotlist_permission_implies() {
-        assert!(hotlist_permission_implies("HOTLIST_ADMIN", "HOTLIST_VIEW"));
-        assert!(hotlist_permission_implies(
-            "HOTLIST_ADMIN",
-            "HOTLIST_VIEW_APPEND"
-        ));
-        assert!(hotlist_permission_implies(
-            "HOTLIST_VIEW_APPEND",
-            "HOTLIST_VIEW"
-        ));
-        assert!(!hotlist_permission_implies(
-            "HOTLIST_VIEW",
-            "HOTLIST_VIEW_APPEND"
-        ));
-        assert!(!hotlist_permission_implies("HOTLIST_VIEW", "HOTLIST_ADMIN"));
+        assert!(HotlistPermission::Admin.implies(HotlistPermission::View));
+        assert!(HotlistPermission::Admin.implies(HotlistPermission::ViewAppend));
+        assert!(HotlistPermission::ViewAppend.implies(HotlistPermission::View));
+        assert!(!HotlistPermission::View.implies(HotlistPermission::ViewAppend));
+        assert!(!HotlistPermission::View.implies(HotlistPermission::Admin));
     }
 
     #[test]
@@ -544,6 +582,17 @@ mod tests {
             assert_eq!(perm.to_proto(), val);
             let s = perm.as_str();
             let perm2 = ComponentPermission::parse(s).unwrap();
+            assert_eq!(perm, perm2);
+        }
+    }
+
+    #[test]
+    fn test_hotlist_permission_roundtrip() {
+        for val in 1..=3 {
+            let perm = HotlistPermission::from_proto(val).unwrap();
+            assert_eq!(perm.to_proto(), val);
+            let s = perm.as_str();
+            let perm2 = HotlistPermission::parse(s).unwrap();
             assert_eq!(perm, perm2);
         }
     }
